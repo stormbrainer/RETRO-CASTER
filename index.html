@@ -139,12 +139,12 @@ const NeuralGuard = (() => {
     let _selfHash = 0;
 
     const CONFIG = Object.freeze({
-        INTEGRITY_MAX: 100,
+        INTEGRITY_MAX: 500,
         SENSITIVE_WINDOW: 60000,
         SESSION_TTL_MS: 1800000,       // 30 min inactivity → expire
         RATE_LIMIT_WINDOW: 10000,      // 10s window
         RATE_LIMIT_MAX: 20,             // max 20 msgs per window
-        RATE_LIMIT_BURST: 3,            // burst-3 then throttle
+        RATE_LIMIT_BURST: 5,            // burst-5 then throttle (was 3, too aggressive)
         REPEAT_WINDOW: 2000,           // 2s repeat detection
         MAX_MSG_LEN: 2000,             // over this = flagged
         GHOST_VARIETY: Object.freeze([
@@ -364,16 +364,25 @@ const NeuralGuard = (() => {
                         if (cat === "SENSITIVE") {
                             const now = Date.now();
                             if (now - session.sensitiveHitTs > CONFIG.SENSITIVE_WINDOW) {
+                                // First sensitive hit in 60s window — just warn, don't block
                                 session.sensitiveHitTs = now;
-                                _log(`Warning: Sensitive intent detected from ${session.username}`);
+                                session.sensitiveCount = (session.sensitiveCount || 0) + 1;
+                                session.integrity = Math.max(0, session.integrity - 25);
+                                _log(`Warning: Sensitive word from ${session.username} (count: ${session.sensitiveCount})`);
+                                return { action: "ALLOW", msg: message };
+                            }
+                            // Second hit within window — drop but don't ghost
+                            session.integrity = Math.max(0, session.integrity - 50);
+                            if (session.integrity > 100) {
+                                _log(`Warning: Repeated sensitive content from ${session.username}`);
                                 return { action: "DROP", msg: "" };
                             }
-                            // Within window — escalate to ghost
+                            // Integrity critically low — ghost
                         }
 
-                        // Perma-Ghosting
+                        // Ghosting (not perma — can recover if integrity regenerates)
                         session.isGhost = true;
-                        session.integrity = 0;
+                        session.integrity = Math.max(0, session.integrity - 200);
                         _log(`CRITICAL: ${session.username} has been ghosted.`, true);
 
                         session.ghostIndex = (session.ghostIndex + 1) % CONFIG.GHOST_VARIETY.length;
@@ -457,14 +466,14 @@ const Pentagom = (() => {
     let _selfHash = 0;
 
     const CONFIG = Object.freeze({
-        INTEGRITY_MAX: 100000,
+        INTEGRITY_MAX: 200000,
         MAX_SPEED: 25.5,
         DIGIT_EXPIRY: 600000,
         DIGIT_CAP: 25,
         CHAT_BURST: 5,
         CHAT_WINDOW: 1000,
         MSG_MAX: 512,
-        THRESHOLD: 3000,
+        THRESHOLD: 10000,
         DECAY: 75,
         DISTRESS: 4,
         STALE: 1800000,
@@ -1115,10 +1124,10 @@ const AEGIS = (() => {
     // ─────────────────────────────────────────────────────────────────────────
 
     const CFG = Object.freeze({
-        INTEGRITY_MAX: 100, INTEGRITY_MIN: 0, SHADOW_THRESHOLD: 40,
-        MAX_VELOCITY: 0.55, TELEPORT_CREDITS: 3, TELEPORT_MIN_DIST: 10,
+        INTEGRITY_MAX: 500, INTEGRITY_MIN: 0, SHADOW_THRESHOLD: 150,
+        MAX_VELOCITY: 25.0, TELEPORT_CREDITS: 5, TELEPORT_MIN_DIST: 50,
         ECH_STEPS_MAX: 120, COORD_BOUND: 1e6,
-        PACKET_RATE_WINDOW_MS: 1000, PACKET_RATE_LIMIT: 60, STAT_DELTA_MAX: 50,
+        PACKET_RATE_WINDOW_MS: 1000, PACKET_RATE_LIMIT: 120, STAT_DELTA_MAX: 50,
         ISOLATION_DENSITY_LIMIT: 2.0, SECTOR_MESH_DEFAULT: 1.0,
         BPIR_WINDOW: 50, BPIR_RATIO_LIMIT: 3.2, MASKING_THRESHOLD: 4,
         GROOMING_WEIGHT_LIMIT: 6,
@@ -1128,18 +1137,17 @@ const AEGIS = (() => {
         DECAY_HALFLIFE_MS: 300000, BILATERAL_LRU_SIZE: 6000,
         SESSION_TTL_MS: 1800000, SESSION_PRUNE_INTERVAL: 300000,
         // v5.0: escalation cooldown to prevent penalty stacking
-        ESCALATION_COOLDOWN_MS: 2000,
+        ESCALATION_COOLDOWN_MS: 2000, GRACE_PERIOD_MS: 15000,
         PENALTY: Object.freeze({
-            VELOCITY_VIOLATION: 22, VOXEL_PENETRATION: 38, COORD_SPOOF: 50,
-            PACKET_FLOOD: 30, STAT_INJECTION: 45, REPLAY_ATTACK: 35,
-            PREDATORY_IMBALANCE: 60, LURE_MASKING: 25, ACTIVE_GROOMING_WEIGHT: 40,
-            URL_EXFIL: 45, EXTERNAL_HANDLE: 40, AGE_SOLICITATION: 55,
-            PROFANITY: 15, ILLEGAL_CONTENT_SIGNAL: 100, PHASE_ESCALATION: 55,
-            SLANG_BODY_SEXUAL: 30, SLANG_INTIMATE_PICS: 55, SLANG_PLATFORM_EXFIL: 40,
-            SLANG_SEXUAL_INTENT: 45, SLANG_SECRECY: 35, SLANG_MEETING: 30,
-            SLANG_AGE_SEX_LOC: 40, SLANG_COMPLIMENT_SEXL: 20, SCORER_HIGH_THREAT: 50,
-            // v5.0 additions
-            DEVTOOLS_DETECTED: 25, SELF_TAMPER: 80,
+            VELOCITY_VIOLATION: 8, VOXEL_PENETRATION: 20, COORD_SPOOF: 30,
+            PACKET_FLOOD: 15, STAT_INJECTION: 25, REPLAY_ATTACK: 12,
+            PREDATORY_IMBALANCE: 40, LURE_MASKING: 15, ACTIVE_GROOMING_WEIGHT: 30,
+            URL_EXFIL: 25, EXTERNAL_HANDLE: 25, AGE_SOLICITATION: 40,
+            PROFANITY: 8, ILLEGAL_CONTENT_SIGNAL: 500, PHASE_ESCALATION: 35,
+            SLANG_BODY_SEXUAL: 20, SLANG_INTIMATE_PICS: 40, SLANG_PLATFORM_EXFIL: 25,
+            SLANG_SEXUAL_INTENT: 30, SLANG_SECRECY: 20, SLANG_MEETING: 20,
+            SLANG_AGE_SEX_LOC: 25, SLANG_COMPLIMENT_SEXL: 12, SCORER_HIGH_THREAT: 35,
+            DEVTOOLS_DETECTED: 15, SELF_TAMPER: 400,
         })
     });
 
@@ -1206,6 +1214,7 @@ const AEGIS = (() => {
         return {
             uuid,
             integrity:       CFG.INTEGRITY_MAX,
+                createdAt:      Date.now(),
             isGhosted:        false,
             isTerminated:     false,
             lastPos:         { x:0, y:0, z:0 },
@@ -1441,9 +1450,12 @@ const AEGIS = (() => {
 
             s.lastTs = Date.now();
 
-            // Packet hash (v5.0)
+            // Grace period — no penalties for first 15s after connection
+            const isInGrace = (Date.now() - s.createdAt) < CFG.GRACE_PERIOD_MS;
+
+            // Packet hash (v5.0) — only flag if NOT in grace
             const h = _packetHash(pkt);
-            if (s.lastPacketHash === h) { _penalty(s, CFG.PENALTY.REPLAY_ATTACK, 'REPLAY_ATTACK'); return; }
+            if (s.lastPacketHash === h && !isInGrace) { _penalty(s, CFG.PENALTY.REPLAY_ATTACK, 'REPLAY_ATTACK'); return; }
             s.lastPacketHash = h;
 
             if (_rateExceeded(s, Date.now())) { _penalty(s, CFG.PENALTY.PACKET_FLOOD, 'PACKET_FLOOD'); return; }
@@ -1454,7 +1466,7 @@ const AEGIS = (() => {
                 return;
             }
 
-            if (s.hasFirstMove) {
+            if (s.hasFirstMove && !isInGrace) {
                 const d = _dist3(s.lastPos, pos);
                 if (d > CFG.MAX_VELOCITY && s.teleportCredits > 0) { s.teleportCredits--; }
                 else if (d > CFG.MAX_VELOCITY) { _penalty(s, CFG.PENALTY.VELOCITY_VIOLATION, 'VELOCITY_VIOLATION'); }
@@ -1608,6 +1620,7 @@ const GuardBridge = (() => {
             return Object.freeze({ action: 'ALLOW', score: 0, sources: [] });
         }
 
+        const GRACE_MS = 15000;
         let maxSeverity = SEVERITY.ALLOW;
         let maxScore = 0;
         let winningAction = 'ALLOW';
