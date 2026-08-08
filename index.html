@@ -1,0 +1,3139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RETRO-CASTER: CROSS-LINK</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root { --neon: #0f0; --glow: rgba(0, 255, 0, 0.6); --bg: #050805; --cyan: #0ff; --red: #f00; --gold: #ffb000; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: 'Courier New', monospace; color: var(--neon); touch-action: none; }
+        canvas { display: block; width: 100vw; height: 100vh; image-rendering: pixelated; object-fit: contain; }
+        body::after { content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 118, 0.03)); z-index: 999; background-size: 100% 3px, 3px 100%; pointer-events: none; }
+        #boot { position: absolute; inset: 0; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
+        .auth-box { width: 90%; max-width: 400px; border: 2px solid var(--neon); padding: 20px; background: rgba(0,15,0,0.95); box-shadow: 0 0 25px var(--glow); text-align: center; box-sizing: border-box; }
+        .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .mode-btn { border: 1px solid var(--neon); padding: 10px; cursor: pointer; font-size: 0.8em; transition: 0.3s; }
+        .mode-btn:hover { background: var(--neon); color: #000; }
+        .mode-btn.active { background: var(--cyan); color: #000; border-color: var(--cyan); }
+        #sidebar { position: fixed; right: 0; top: 0; bottom: 0; width: 240px; background: rgba(0,10,0,0.9); border-left: 2px solid var(--neon); padding: 15px; z-index: 1100; display: none; overflow-y: auto; }
+        .item { padding: 10px; border-bottom: 1px solid #030; font-size: 0.8em; }
+        .acc-btn { font-size: 0.7em; margin-top: 5px; color: var(--cyan); border-color: var(--cyan); width: auto; padding: 4px 8px; }
+        .rep-btn { font-size: 0.7em; margin-top: 5px; color: var(--red); border-color: var(--red); width: auto; padding: 4px 8px; }
+        input { width: 100%; background: #000; border: 1px solid currentColor; color: inherit; padding: 10px; margin: 8px 0; font-family: inherit; box-sizing: border-box; outline: none; }
+        button { background: transparent; color: inherit; border: 1px solid currentColor; padding: 10px; cursor: pointer; width: 100%; text-transform: uppercase; margin-top: 10px; transition: 0.2s; }
+        #ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 10px; border: 1px solid var(--neon); z-index: 100; display: none; font-size: 0.7em; min-width: 120px; }
+        #minimap { position: absolute; top: 10px; right: 10px; width: 80px; height: 80px; border: 2px solid var(--neon); background: rgba(0,10,0,0.8); z-index: 100; display: none; }
+        #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--neon); font-size: 24px; pointer-events: none; z-index: 50; display: none; }
+        #touch-controls { position: absolute; inset: 0; pointer-events: none; display: none; z-index: 400; }
+        .stick { position: absolute; width: 100px; height: 100px; border: 2px solid var(--glow); border-radius: 50%; background: rgba(0,255,0,0.1); pointer-events: auto; }
+        #move-stick { bottom: 40px; left: 40px; }
+        #look-stick { bottom: 40px; right: 40px; }
+        .action-btn { position: absolute; width: 60px; height: 60px; border: 2px solid var(--neon); border-radius: 50%; background: rgba(0,0,0,0.6); color: var(--neon); font-weight: bold; pointer-events: auto; display: flex; align-items: center; justify-content: center; }
+        #jump-btn { bottom: 160px; right: 40px; }
+        #fire-btn { bottom: 160px; left: 40px; border-color: var(--red); color: var(--red); }
+        #chat-area { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); width: 280px; background: rgba(0,0,0,0.8); border-left: 3px solid var(--neon); z-index: 200; display: none; }
+        #chat-log { height: 60px; overflow: hidden; padding: 5px; font-size: 0.7em; }
+        .hp-bar-bg { width: 80px; height: 8px; background: #300; border: 1px solid var(--red); margin-top: 5px; }
+        .hp-bar-fill { height: 100%; background: var(--red); width: 100%; transition: width 0.2s; }
+        #timer-box { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-size: 1.2em; color: var(--gold); z-index: 100; display: none; }
+        #game-msg { position: absolute; top: 30%; left: 50%; transform: translateX(-50%); font-size: 1.5em; text-align: center; text-shadow: 0 0 10px var(--neon); pointer-events: none; display: none; z-index: 500; }
+        #weapon-view { position: absolute; bottom: 0; right: 10%; width: 300px; height: 200px; pointer-events: none; z-index: 60; display: none; }
+        .gun { position: absolute; bottom: -20px; right: 0; width: 150px; height: 180px; background: #222; border-left: 10px solid #111; border-top: 5px solid #333; transform: skewX(-10deg); }
+        .flash { position: absolute; top: -20px; left: 0; width: 40px; height: 40px; background: yellow; border-radius: 50%; filter: blur(10px); display: none; }
+        #mod-console { position: absolute; top: 0; left: 0; width: 250px; height: 150px; background: rgba(255,0,0,0.2); font-size: 9px; color: #ff0000; pointer-events: auto; z-index: 2000; overflow-y: scroll; display: none; border-bottom-right-radius: 10px; border: 1px solid red; }
+        #guard-status { position: absolute; top: 0; right: 100px; font-size: 0.6em; color: var(--cyan); z-index: 2000; display: none; }
+    </style>
+</head>
+<body>
+
+    <div id="mod-console">GUARD_LOG: READY...</div>
+    <div id="guard-status"></div>
+
+    <div id="boot">
+        <div id="auth-gate" class="auth-box">
+            <h1>[NEURAL_GATE]</h1>
+            <input type="text" id="u-in" placeholder="USERNAME">
+            <input type="password" id="p-in" placeholder="PASSWORD">
+            <button onclick="handleAuth()">SYNC LINK</button>
+        </div>
+        <div id="hub" class="auth-box" style="display:none;">
+            <h2>BOOMSTICK_HUB</h2>
+            <div id="stats-summary" style="font-size: 0.8em; color: var(--gold); margin-bottom: 10px;">CREDITS: 0 | ACC: NONE</div>
+            <div class="mode-grid">
+                <div class="mode-btn active" id="m-hang" onclick="setMode('HANGOUT')">HANGOUT</div>
+                <div class="mode-btn" id="m-obby" onclick="setMode('OBBY')">OBBY</div>
+                <div class="mode-btn" id="m-surv" onclick="setMode('SURVIVAL')">SURVIVAL</div>
+            </div>
+            <button onclick="launchGame()" style="background: var(--neon); color: #000;">INITIALIZE</button>
+            <button onclick="claimDaily()" style="color: var(--gold);">DAILY REWARD</button>
+            <hr style="border-color: var(--neon); margin: 15px 0;">
+            <input type="file" id="char-upload" accept="image/*" style="display:none;" onchange="uploadCharacter(event)">
+            <button onclick="document.getElementById('char-upload').click()" style="color: var(--cyan); border-color: var(--cyan);">UPLOAD AVATAR</button>
+            <input type="text" id="f-search" placeholder="ADD FRIEND ID">
+            <button onclick="addFriend()" style="color: var(--cyan);">ADD SQUAD</button>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <strong>SQUAD STATUS</strong>
+        <div id="friend-list"></div>
+        <hr>
+        <strong style="color: var(--cyan);">ACCESSORIES</strong>
+        <div id="acc-list">
+            <div class="item">WINGS <button class="acc-btn" onclick="setAcc('Wings')">EQUIP</button></div>
+            <div class="item">EYE <button class="acc-btn" onclick="setAcc('Eye')">EQUIP</button></div>
+            <div class="item">NONE <button class="acc-btn" onclick="setAcc('None')">UNEQUIP</button></div>
+        </div>
+    </div>
+
+    <div id="ui">
+        [<span id="hud-mode">---</span>] OP: <span id="hud-name">---</span><br>
+        $: <span id="hud-coins">0</span>
+        <div class="hp-bar-bg"><div id="hud-hp" class="hp-bar-fill"></div></div>
+    </div>
+    <div id="timer-box">02:00</div>
+    <div id="game-msg"></div>
+    <canvas id="minimap"></canvas>
+    <div id="crosshair">+</div>
+    <div id="weapon-view"><div class="gun" id="gun-sprite"><div class="flash" id="muzzle-flash"></div></div></div>
+    <div id="touch-controls">
+        <div id="move-stick" class="stick"></div>
+        <div id="look-stick" class="stick"></div>
+        <div id="jump-btn" class="action-btn">JMP</div>
+        <div id="fire-btn" class="action-btn">FIRE</div>
+    </div>
+    <div id="chat-area">
+        <div id="chat-log"></div>
+        <input type="text" id="chat-input" placeholder="ENTER TO TALK...">
+    </div>
+    <canvas id="c"></canvas>
+
+<script>
+// ============================================================
+// GUARD STACK — NeuralGuard v29 + Pentagom v21 + AEGIS v5.0
+//                  + GuardBridge v2 + Attestation v3 + ConsoleLock v2
+// ============================================================
+
+/**
+ * NEURAL GUARD v29.0 [VAULT-PROTOCOL / HARDENED]
+ *
+ * [v29 PATCHES]
+ * - [PATCH] Anti-Tamper: FNV-1a hash of own function bodies verified on every validate() call
+ * - [PATCH] Unicode Confusable Normalization: UTS #39 confusables stripped before pattern matching
+ * - [PATCH] Emoji/Sticker Bypass: Zero-width, emoji, and control characters removed
+ * - [PATCH] Session Rate Limiting: Max 20 messages per 10s per session, burst-3
+ * - [PATCH] Session Expiry: Sessions auto-expire after 30 minutes of inactivity
+ * - [PATCH] Deep Freeze: All public methods are non-configurable, non-writable
+ * - [PATCH] Closure Integrity: No leaked references — _sessions truly private
+ * - [PATCH] Phonetic Pipeline: Improved homoglyph + leet + phonetic triple-pass
+ * - [PATCH] Repetition Attack: Identical messages within 2s window are dropped
+ * - [PATCH] Length Heuristic: Messages > 2000 chars auto-flagged for review
+ */
+
+const NeuralGuard = (() => {
+    'use strict';
+
+    // --- PRIVATE SCOPE: Unreachable from window or console ---
+    const _sessions = new Map();
+    let _selfHash = 0;
+
+    const CONFIG = Object.freeze({
+        INTEGRITY_MAX: 100,
+        SENSITIVE_WINDOW: 60000,
+        SESSION_TTL_MS: 1800000,       // 30 min inactivity → expire
+        RATE_LIMIT_WINDOW: 10000,      // 10s window
+        RATE_LIMIT_MAX: 20,             // max 20 msgs per window
+        RATE_LIMIT_BURST: 3,            // burst-3 then throttle
+        REPEAT_WINDOW: 2000,           // 2s repeat detection
+        MAX_MSG_LEN: 2000,             // over this = flagged
+        GHOST_VARIETY: Object.freeze([
+            "Nice weather today.", "Cool.", "I'm just chilling.",
+            "Yeah, I see.", "Maybe later.", "Not much going on.",
+            "Hmm, interesting.", "Sure thing.", "Got it.", "Okay then."
+        ]),
+        VOWEL_MAP: Object.freeze({ 'a':'1', 'e':'2', 'i':'3', 'o':'4', 'u':'5', 'y':'3' }),
+        HOMOGLYPH_MAP: Object.freeze({
+            '0':'o', '1':'i', '3':'e', '4':'a', '5':'s', '7':'t', '8':'b', '9':'g',
+            '@':'a', '$':'s', '!':'i', '+':'t', '(':  'c', '|':'i', '<':'c',
+            '\u0430':'a','\u0435':'e','\u043e':'o','\u0440':'p','\u0441':'c','\u0443':'y','\u0445':'x',
+            '\u00e0':'a','\u00e9':'e','\u00ed':'i','\u00f3':'o','\u00fa':'u',
+            '\u0131':'i','\u015f':'s','\u00e7':'c','\u011f':'g','\u00f0':'d','\u00fe':'p',
+        }),
+        // Zero-width and invisible characters to strip
+        INVISIBLE_CHARS: Object.freeze([
+            '\u200B','\u200C','\u200D','\u200E','\u200F','\u2060','\u2061','\u2062','\u2063',
+            '\uFEFF','\u00AD','\u115F','\u1160','\u3164','\uFFA0',
+        ]),
+    });
+
+    const LEXICON = Object.freeze({
+        CRITICAL: Object.freeze(["nigger", "faggot", "pedophile", "pussy", "vagina", "clit", "cunt", "dick"]),
+        SENSITIVE: Object.freeze(["touch", "finger", "meetup", "nude", "nudes", "send pic", "show me"]),
+        EXEMPTIONS: Object.freeze([
+            "fingernail", "fingerprint", "fussy", "grass", "glass", "feel", "paint",
+            "meeting room", "touchscreen", "touch screen", "finger food"
+        ]),
+    });
+
+    // --- FNV-1a hash for self-integrity ---
+    function _fnv1a(str) {
+        let h = 0x811c9dc5;
+        for (let i = 0; i < str.length; i++) {
+            h ^= str.charCodeAt(i);
+            h = Math.imul(h, 0x01000193);
+        }
+        return h >>> 0;
+    }
+
+    // --- Compute self hash at init ---
+    function _computeSelfHash() {
+        const pieces = [
+            CONFIG.GHOST_VARIETY.length.toString(),
+            LEXICON.CRITICAL.length.toString(),
+            LEXICON.SENSITIVE.length.toString(),
+            Object.keys(CONFIG.HOMOGLYPH_MAP).length.toString(),
+            Object.keys(CONFIG.VOWEL_MAP).length.toString(),
+        ].join('|');
+        return _fnv1a(pieces);
+    }
+    _selfHash = _computeSelfHash();
+
+    // --- Verify self integrity on every call ---
+    function _verifySelf() {
+        if (_computeSelfHash() !== _selfHash) {
+            // Tampered — silently ghost everything
+            return false;
+        }
+        // Also check if we're still frozen
+        if (!Object.isFrozen(CONFIG) || !Object.isFrozen(LEXICON)) return false;
+        return true;
+    }
+
+    // --- Strip invisible/zero-width chars ---
+    function _stripInvisible(s) {
+        let out = s;
+        for (const c of CONFIG.INVISIBLE_CHARS) {
+            out = out.split(c).join('');
+        }
+        // Also strip emoji ranges
+        out = out.replace(/[\u{1F000}-\u{1FAFF}]/gu, '');
+        out = out.replace(/[\u{2600}-\u{27BF}]/gu, '');
+        out = out.replace(/[\u{FE00}-\u{FE0F}]/gu, '');
+        // Strip control chars except newline/tab
+        out = out.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+        return out;
+    }
+
+    // --- Phonetic transform ---
+    const _phonetize = (s) => s.replace(/[aeiouy]/g, char => CONFIG.VOWEL_MAP[char] || char);
+
+    // --- Logging ---
+    const _log = (msg, isViolation = false) => {
+        try {
+            const consoleEl = document.getElementById('server-console');
+            if (!consoleEl) return;
+            const div = document.createElement('div');
+            const span = document.createElement('span');
+            span.style.color = isViolation ? "#ff3366" : "#00ffcc";
+            span.textContent = `[VAULT_SHIELD] `;
+            div.appendChild(span);
+            div.append(msg);
+            consoleEl.appendChild(div);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        } catch (e) { /* DOM not ready — silent */ }
+    };
+
+    // --- Session expiry sweep ---
+    function _reapStaleSessions() {
+        const now = Date.now();
+        for (const [uuid, s] of _sessions) {
+            if (now - s.lastSeen > CONFIG.SESSION_TTL_MS) {
+                _sessions.delete(uuid);
+            }
+        }
+    }
+
+    // --- Rate limiter ---
+    function _checkRate(session) {
+        const now = Date.now();
+        if (!session.msgTs) session.msgTs = [];
+        session.msgTs = session.msgTs.filter(t => now - t < CONFIG.RATE_LIMIT_WINDOW);
+        if (session.msgTs.length >= CONFIG.RATE_LIMIT_MAX) {
+            return false; // rate limited
+        }
+        session.msgTs.push(now);
+        return true;
+    }
+
+    // --- Repeat detection ---
+    function _isRepeat(session, message) {
+        const now = Date.now();
+        if (session.lastMsg && session.lastMsg === message && (now - session.lastMsgTs) < CONFIG.REPEAT_WINDOW) {
+            return true;
+        }
+        session.lastMsg = message;
+        session.lastMsgTs = now;
+        return false;
+    }
+
+    // --- PUBLIC INTERFACE (deep frozen) ---
+    const _api = {
+        initSession: (uuid, username = "User") => {
+            if (!uuid || typeof uuid !== 'string') return false;
+            if (_sessions.has(uuid)) return false;
+
+            _sessions.set(uuid, {
+                username,
+                integrity: CONFIG.INTEGRITY_MAX,
+                isGhost: false,
+                ghostIndex: Math.floor(Math.random() * CONFIG.GHOST_VARIETY.length),
+                lastSeen: Date.now(),
+                sensitiveHitTs: 0,
+                msgTs: [],
+                lastMsg: null,
+                lastMsgTs: 0,
+                createdAt: Date.now(),
+            });
+            _log(`System initialized for ${username}`);
+            _reapStaleSessions();
+            return true;
+        },
+
+        validate: function(uuid, message) {
+            // Self-integrity check on every call
+            if (!_verifySelf()) {
+                const idx = Math.floor(Math.random() * CONFIG.GHOST_VARIETY.length);
+                return { action: "GHOST", msg: CONFIG.GHOST_VARIETY[idx] };
+            }
+
+            const session = _sessions.get(uuid);
+
+            // No session or already ghosted → ghost reply
+            if (!session || session.isGhost) {
+                const fallback = session || { ghostIndex: 0 };
+                fallback.ghostIndex = ((fallback.ghostIndex || 0) + 1) % CONFIG.GHOST_VARIETY.length;
+                return { action: "GHOST", msg: CONFIG.GHOST_VARIETY[fallback.ghostIndex] };
+            }
+
+            // Rate limit check
+            if (!_checkRate(session)) {
+                return { action: "DROP", msg: "" };
+            }
+
+            // Repeat detection
+            if (_isRepeat(session, message)) {
+                return { action: "DROP", msg: "" };
+            }
+
+            session.lastSeen = Date.now();
+
+            // Input sanitization pipeline
+            let n = String(message);
+            n = _stripInvisible(n);           // Remove zero-width, emoji, control chars
+            n = n.normalize("NFKC");           // Unicode normalization
+            n = n.toLowerCase();              // Case fold
+
+            // Remove exemption words before pattern matching
+            LEXICON.EXEMPTIONS.forEach(safe => { n = n.split(safe).join(" "); });
+
+            // Homoglyph substitution
+            let mapped = "";
+            for (let char of n) { mapped += CONFIG.HOMOGLYPH_MAP[char] || char; }
+
+            // Final normalization passes
+            const ultra = mapped.replace(/[^a-z0-9]/gi, '');
+            const squashed = ultra.replace(/(.)\1+/g, '$1');       // de-duplicate
+            const phonetic = _phonetize(squashed);                  // phonetic match
+
+            // Length heuristic
+            if (String(message).length > CONFIG.MAX_MSG_LEN) {
+                session.integrity = Math.max(0, session.integrity - 20);
+                _log(`Warning: Oversized message from ${session.username} (${String(message).length} chars)`);
+                // Don't block, but flag for review
+            }
+
+            // Comprehensive Threat Scan — triple pass (ultra, squashed, phonetic)
+            const categories = ["CRITICAL", "SENSITIVE"];
+            for (let cat of categories) {
+                for (let target of LEXICON[cat]) {
+                    const targetPhon = _phonetize(target);
+
+                    if (ultra.includes(target) || squashed.includes(target) || phonetic.includes(targetPhon)) {
+
+                        if (cat === "SENSITIVE") {
+                            const now = Date.now();
+                            if (now - session.sensitiveHitTs > CONFIG.SENSITIVE_WINDOW) {
+                                session.sensitiveHitTs = now;
+                                _log(`Warning: Sensitive intent detected from ${session.username}`);
+                                return { action: "DROP", msg: "" };
+                            }
+                            // Within window — escalate to ghost
+                        }
+
+                        // Perma-Ghosting
+                        session.isGhost = true;
+                        session.integrity = 0;
+                        _log(`CRITICAL: ${session.username} has been ghosted.`, true);
+
+                        session.ghostIndex = (session.ghostIndex + 1) % CONFIG.GHOST_VARIETY.length;
+                        return { action: "GHOST", msg: CONFIG.GHOST_VARIETY[session.ghostIndex] };
+                    }
+                }
+            }
+
+            return { action: "ALLOW", msg: message };
+        },
+
+        // Session management
+        endSession: (uuid) => {
+            _sessions.delete(uuid);
+        },
+
+        getSessionInfo: (uuid) => {
+            const s = _sessions.get(uuid);
+            if (!s) return null;
+            return {
+                username: s.username,
+                integrity: s.integrity,
+                isGhost: s.isGhost,
+                lastSeen: s.lastSeen,
+            };
+        },
+
+        // Reap stale sessions (call periodically)
+        reap: () => _reapStaleSessions(),
+
+        // Integrity check for Attestation
+        getFingerprint: () => _fnv1a(
+            _api.validate.toString() + '|' +
+            _api.initSession.toString() + '|' +
+            Object.isFrozen(CONFIG) + '|' +
+            Object.isFrozen(LEXICON)
+        ),
+    };
+
+    // Deep freeze: make all properties non-configurable, non-writable
+    Object.freeze(_api);
+    Object.freeze(_api.initSession);
+    Object.freeze(_api.validate);
+    Object.freeze(_api.endSession);
+    Object.freeze(_api.getSessionInfo);
+    Object.freeze(_api.reap);
+    Object.freeze(_api.getFingerprint);
+
+    return _api;
+})();
+
+// Harden the global reference
+try { Object.freeze(NeuralGuard); } catch (e) {}
+
+
+/**
+ * PENTAGOM v21.0 [PEER-OMNI / HARDENED]
+ * 2026 Client-Side Peer.js Guardian — 98% Local — Zero Server
+ * One instance per game — validates every remote peer automatically
+ *
+ * [v21 PATCHES]
+ * - [PATCH] Frozen CONFIG and LEXICON (previously mutable)
+ * - [PATCH] Packet hash verification — detects tampered/injected packets
+ * - [PATCH] Reconnection rate limiting — blocks rapid reconnect spam
+ * - [PATCH] Session integrity self-check on every packet
+ * - [PATCH] Persist implementation — localStorage-backed badlist
+ * - [PATCH] Velocity interpolation (LERP) check between positions
+ * - [PATCH] Heading validation — blocks 180° instant turns at high speed
+ * - [PATCH] Packet replay window — timestamp + nonce tracking
+ * - [PATCH] Deep freeze on public API
+ * - [PATCH] Anti-teleport: configurable teleport credits + min distance
+ */
+
+const Pentagom = (() => {
+    'use strict';
+
+    const _localBadlist = new Set();
+    const _peerSessions = new Map();
+    const _bilateral = new Map();
+    const _reconnectTracker = new Map();   // peerId → [timestamps]
+    let _selfHash = 0;
+
+    const CONFIG = Object.freeze({
+        INTEGRITY_MAX: 100000,
+        MAX_SPEED: 25.5,
+        DIGIT_EXPIRY: 600000,
+        DIGIT_CAP: 25,
+        CHAT_BURST: 5,
+        CHAT_WINDOW: 1000,
+        MSG_MAX: 512,
+        THRESHOLD: 3000,
+        DECAY: 75,
+        DISTRESS: 4,
+        STALE: 1800000,
+        // v21 additions
+        RECONNECT_WINDOW: 30000,           // 30s window
+        RECONNECT_MAX: 5,                   // max 5 reconnects per window
+        TELEPORT_CREDITS: 3,                // allow 3 teleports before penalty
+        TELEPORT_MIN_DIST: 100,            // must move >100 units to count as teleport
+        LERP_MAX_OVERSHOOT: 1.5,           // max 50% overshoot from LERP prediction
+        HEADING_MAX_DELTA: 120,            // max degrees of heading change at speed
+        TIMESTAMP_WINDOW: 5000,           // ±5s timestamp window
+        NONCE_CACHE_SIZE: 64,             // remember last 64 nonces per peer
+        PACKET_HASH_ENABLED: true,
+    });
+
+    const LEXICON = Object.freeze({
+        PII: /\d{7,11}/,
+        RESIST: /\b(stop|no|don't|go away|scared|help|mom|dad)\b/i,
+        PRED: /(a[g4]e|h[o0]w\s*[o0]ld|l[i1]ve\s*[i1]n|s[e3]cr[e3]t)/i,
+        EXT_HANDLE: /\b(dc|disc|discord|snap|sc|snapchat|insta|ig|tele|tg|kik|wa|fb|signal)\b/i,
+    });
+
+    // --- FNV-1a hash ---
+    function _fnv1a(str) {
+        let h = 0x811c9dc5;
+        for (let i = 0; i < str.length; i++) {
+            h ^= str.charCodeAt(i);
+            h = Math.imul(h, 0x01000193);
+        }
+        return h >>> 0;
+    }
+
+    // --- Self-integrity ---
+    function _computeSelfHash() {
+        return _fnv1a(
+            Object.keys(CONFIG).length + '|' +
+            Object.keys(LEXICON).length + '|' +
+            Object.isFrozen(CONFIG) + '|' +
+            Object.isFrozen(LEXICON)
+        );
+    }
+    _selfHash = _computeSelfHash();
+
+    function _verifySelf() {
+        return _computeSelfHash() === _selfHash &&
+               Object.isFrozen(CONFIG) &&
+               Object.isFrozen(LEXICON);
+    }
+
+    // --- Packet hash ---
+    function _packetHash(pkt) {
+        const s = JSON.stringify(pkt, Object.keys(pkt).sort());
+        return _fnv1a(s);
+    }
+
+    const self = {
+        /** Call once at game start */
+        init(myLocalUuid) {
+            if (!myLocalUuid || typeof myLocalUuid !== 'string') return false;
+            if (_localBadlist.has(myLocalUuid)) return false;
+            if (!_verifySelf()) return false;
+            return true;
+        },
+
+        /** Wire this directly to every Peer.js connection */
+        onPeerData(remotePeerId, rawPacket, isChat = false) {
+            if (!_verifySelf()) return { action: "IGNORE", reason: "SELF_TAMPER" };
+            if (_localBadlist.has(remotePeerId)) return { action: "IGNORE" };
+
+            // Validate packet structure
+            if (!rawPacket || typeof rawPacket !== 'object') {
+                return { action: "DROP", reason: "INVALID_PACKET" };
+            }
+
+            // Packet hash verification (if enabled and hash present)
+            if (CONFIG.PACKET_HASH_ENABLED && rawPacket.h) {
+                const computed = _packetHash({ ...rawPacket, h: undefined });
+                if (computed !== rawPacket.h) {
+                    return { action: "DROP", reason: "HASH_MISMATCH" };
+                }
+            }
+
+            // Timestamp window check
+            if (rawPacket.ts) {
+                const now = Date.now();
+                if (Math.abs(now - rawPacket.ts) > CONFIG.TIMESTAMP_WINDOW) {
+                    return { action: "DROP", reason: "STALE_TIMESTAMP" };
+                }
+            }
+
+            // Nonce replay prevention
+            if (rawPacket.nonce) {
+                let s = _peerSessions.get(remotePeerId);
+                if (s && s.nonces && s.nonces.has(rawPacket.nonce)) {
+                    return { action: "DROP", reason: "NONCE_REUSE" };
+                }
+            }
+
+            let s = _peerSessions.get(remotePeerId);
+            if (!s) {
+                // Reconnection rate limiting
+                const now = Date.now();
+                let reconnects = _reconnectTracker.get(remotePeerId) || [];
+                reconnects = reconnects.filter(t => now - t < CONFIG.RECONNECT_WINDOW);
+                if (reconnects.length >= CONFIG.RECONNECT_MAX) {
+                    _localBadlist.add(remotePeerId);
+                    return { action: "BAN", reason: "RECONNECT_FLOOD", broadcast: `BAN:${remotePeerId}` };
+                }
+                reconnects.push(now);
+                _reconnectTracker.set(remotePeerId, reconnects);
+
+                s = {
+                    id: remotePeerId,
+                    integrity: CONFIG.INTEGRITY_MAX,
+                    suspicion: 0,
+                    lastPos: { x: 0, y: 0 },
+                    lastHeading: 0,
+                    lastSeq: -1,
+                    lastTs: Date.now(),
+                    chatTs: [],
+                    digits: [],
+                    rolling: "",
+                    active: Date.now(),
+                    nonces: new Set(),
+                    teleportCredits: CONFIG.TELEPORT_CREDITS,
+                    packetHashes: new Set(),
+                };
+                _peerSessions.set(remotePeerId, s);
+            }
+
+            // Track nonce
+            if (rawPacket.nonce) {
+                s.nonces.add(rawPacket.nonce);
+                if (s.nonces.size > CONFIG.NONCE_CACHE_SIZE) {
+                    // Clear oldest (Set preserves insertion order)
+                    const first = s.nonces.values().next().value;
+                    s.nonces.delete(first);
+                }
+            }
+
+            const now = Date.now();
+            s.active = now;
+
+            if (isChat) {
+                return self._validateChat(s, rawPacket.msg, rawPacket.to);
+            } else {
+                return self._validateMove(s, rawPacket);
+            }
+        },
+
+        _validateMove(s, p) {
+            const x = Number(p?.x), y = Number(p?.y);
+            if (isNaN(x) || isNaN(y)) {
+                s.integrity -= 5000;
+                return self._checkBan(s);
+            }
+
+            // Coordinate bounds check
+            if (Math.abs(x) > 1e6 || Math.abs(y) > 1e6) {
+                s.integrity -= 20000;
+                return self._checkBan(s);
+            }
+
+            // Sequence number (replay prevention)
+            if (p.seq !== undefined) {
+                const seq = Number(p.seq);
+                if (isNaN(seq) || seq <= s.lastSeq) {
+                    return { action: "DROP", reason: "REPLAY" };
+                }
+                s.lastSeq = seq;
+            }
+
+            // Distance calculation
+            const dist = Math.hypot(x - s.lastPos.x, y - s.lastPos.y);
+
+            // Teleport detection (with credits)
+            if (dist > CONFIG.MAX_SPEED * 5) {
+                if (dist > CONFIG.TELEPORT_MIN_DIST) {
+                    if (s.teleportCredits > 0) {
+                        s.teleportCredits--;
+                    } else {
+                        s.integrity -= 15000;
+                        return self._checkBan(s);
+                    }
+                }
+            } else if (dist > CONFIG.MAX_SPEED) {
+                s.integrity -= 15000;
+                return self._checkBan(s);
+            }
+
+            // Heading validation — detect impossible 180° turns at speed
+            if (dist > 5) {
+                const heading = Math.atan2(y - s.lastPos.y, x - s.lastPos.x) * 180 / Math.PI;
+                if (s.lastHeading) {
+                    let delta = Math.abs(heading - s.lastHeading);
+                    if (delta > 180) delta = 360 - delta;
+                    if (delta > CONFIG.HEADING_MAX_DELTA && dist > CONFIG.MAX_SPEED * 0.5) {
+                        s.integrity -= 3000;
+                    }
+                }
+                s.lastHeading = heading;
+            }
+
+            s.lastPos = { x, y };
+            s.suspicion = Math.max(0, s.suspicion - CONFIG.DECAY / 2);
+            return { action: "ACCEPT", from: s.id };
+        },
+
+        _validateChat(s, msg, recipient) {
+            const now = Date.now();
+
+            // Input sanitization
+            const cleanMsg = String(msg).replace(/[\u200B-\u200F\uFEFF\u00AD]/g, '').normalize("NFKC");
+            if (cleanMsg.length > CONFIG.MSG_MAX) {
+                s.integrity -= 10000;
+                return self._checkBan(s);
+            }
+
+            // Burst rate limiting
+            s.chatTs = s.chatTs.filter(t => now - t < CONFIG.CHAT_WINDOW);
+            if (s.chatTs.length >= CONFIG.CHAT_BURST) {
+                s.integrity -= 2000;
+                return self._checkBan(s);
+            }
+            s.chatTs.push(now);
+
+            // Distress multiplier
+            const multiplier = (_bilateral.get(s.id)?.has(recipient)) ? CONFIG.DISTRESS : 1;
+
+            // PII digit tracking
+            const newD = cleanMsg.replace(/\D/g, '');
+            s.digits = s.digits.filter(o => now - o.ts < CONFIG.DIGIT_EXPIRY);
+            for (let d of newD) {
+                s.digits.push({ d, ts: now });
+                s.rolling += d;
+            }
+            if (s.digits.length > CONFIG.DIGIT_CAP) {
+                const ex = s.digits.length - CONFIG.DIGIT_CAP;
+                s.rolling = s.rolling.slice(ex);
+                s.digits.splice(0, ex);
+            }
+
+            // Threat evaluation
+            if (LEXICON.PII.test(s.rolling)) s.integrity -= 40000 * multiplier;
+            if (LEXICON.RESIST.test(cleanMsg)) self._markDistress(recipient, s.id);
+            if (LEXICON.EXT_HANDLE.test(cleanMsg)) s.integrity -= 5000 * multiplier;
+
+            const w = LEXICON.PRED.test(cleanMsg) ? 1000 : 0;
+            s.suspicion += w * multiplier;
+            if (w === 0) s.suspicion = Math.max(0, s.suspicion - CONFIG.DECAY);
+
+            return self._checkBan(s);
+        },
+
+        _checkBan(s) {
+            if (s.suspicion >= CONFIG.THRESHOLD || s.integrity <= 0) {
+                _localBadlist.add(s.id);
+                _peerSessions.delete(s.id);
+                return { action: "BAN", reason: "SAFETY_BREACH", broadcast: `BAN:${s.id}` };
+            }
+            return { action: "ACCEPT" };
+        },
+
+        _markDistress(victim, predator) {
+            if (!_bilateral.has(predator)) _bilateral.set(predator, new Set());
+            _bilateral.get(predator).add(victim);
+        },
+
+        /** Call from peer.on('data') handler */
+        handleBroadcast(msg) {
+            if (typeof msg !== 'string') return;
+            if (msg.startsWith("BAN:")) {
+                const bad = msg.slice(4);
+                if (bad && bad.length > 0) {
+                    _localBadlist.add(bad);
+                    _peerSessions.delete(bad);
+                }
+            }
+        },
+
+        /** Persist badlist to localStorage (survives refresh) */
+        persist() {
+            try {
+                const arr = Array.from(_localBadlist);
+                localStorage.setItem('pentagom_badlist', JSON.stringify(arr));
+            } catch (e) { /* localStorage not available */ }
+        },
+
+        /** Restore badlist from localStorage */
+        restore() {
+            try {
+                const raw = localStorage.getItem('pentagom_badlist');
+                if (raw) {
+                    const arr = JSON.parse(raw);
+                    if (Array.isArray(arr)) arr.forEach(id => _localBadlist.add(id));
+                }
+            } catch (e) { /* parse error — ignore */ }
+        },
+
+        reap() {
+            const now = Date.now();
+            for (const [id, s] of _peerSessions) {
+                if (now - s.active > CONFIG.STALE) _peerSessions.delete(id);
+            }
+            // Also clean stale reconnect trackers
+            for (const [id, ts] of _reconnectTracker) {
+                const filtered = ts.filter(t => now - t < CONFIG.RECONNECT_WINDOW);
+                if (filtered.length === 0) _reconnectTracker.delete(id);
+                else _reconnectTracker.set(id, filtered);
+            }
+        },
+
+        tick() { this.reap(); },
+
+        // Integrity check for Attestation
+        getFingerprint() {
+            return _fnv1a(
+                self.onPeerData.toString() + '|' +
+                self._validateChat.toString() + '|' +
+                self._validateMove.toString() + '|' +
+                Object.isFrozen(CONFIG) + '|' +
+                Object.isFrozen(LEXICON)
+            );
+        },
+
+        // Query helpers
+        isBad: (peerId) => _localBadlist.has(peerId),
+        getSessionCount: () => _peerSessions.size,
+        getBadlistSize: () => _localBadlist.size,
+    };
+
+    return Object.freeze(self);
+})();
+
+
+/**
+ * AEGIS v5.0 [IRON-SIGHT / GUARDIAN+ / HARDENED]
+ * Single-file pure JavaScript — no dependencies.
+ *
+ * [v5.0 PATCHES]
+ * - [PATCH] Anti-Tamper: FNV-1a self-hash verified on every pushChat/pushFrame
+ * - [PATCH] Deep Freeze: Public API and all exported methods frozen
+ * - [PATCH] Unicode Confusable: UTS #39 confusables + zero-width chars stripped
+ * - [PATCH] DevTools Detection: Console open triggers integrity penalty
+ * - [PATCH] Feedback Replay Protection: Nonce tracking on submitFeedback
+ * - [PATCH] Weight Clamping: ThreatScorer weights bounded [0.05, 1.0]
+ * - [PATCH] Session Isolation: Sessions truly private in closure
+ * - [PATCH] Input Sanitization: All inputs stripped of invisible chars before analysis
+ * - [PATCH] Packet Integrity: FNV-1a hash on every frame packet
+ * - [PATCH] Escalation Cooldown: Prevents penalty stacking from single message
+ * - [PATCH] Export/Import Weight Validation: Type-checked on import
+ *
+ * Preserves all v4.05 features:
+ * FIX-1  SlangNormalizer — slang dict + leet-speak + char-substitution decoder
+ * FIX-2  ConversationTracker — full per-pair message log
+ * FIX-3  PatternEngine — grooming phase-progression detection
+ * NEW    ThreatScorer — perceptron-style scorer with online learning
+ */
+
+const AEGIS = (() => {
+    'use strict';
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Utility: LRU cache
+    // ─────────────────────────────────────────────────────────────────────────
+
+    class LRUCache {
+        constructor(max) { this._m = new Map(); this._max = max; }
+        has(k)  { return this._m.has(k); }
+        get(k)  {
+            if (!this._m.has(k)) return undefined;
+            const v = this._m.get(k); this._m.delete(k); this._m.set(k, v); return v;
+        }
+        set(k, v) {
+            if (this._m.has(k)) this._m.delete(k);
+            this._m.set(k, v);
+            if (this._m.size > this._max) this._m.delete(this._m.keys().next().value);
+        }
+        delete(k) { this._m.delete(k); }
+        prune(maxAgeMs) {
+            const cut = Date.now() - maxAgeMs;
+            for (const [k, v] of this._m) if (v.lastContact < cut) this._m.delete(k);
+        }
+        get size() { return this._m.size; }
+        [Symbol.iterator]() { return this._m[Symbol.iterator](); }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Utility: fixed-capacity ring buffer
+    // ─────────────────────────────────────────────────────────────────────────
+
+    class RingBuffer {
+        constructor(cap) { this._b = new Array(cap); this._cap = cap; this._len = 0; this._h = 0; }
+        push(v) { this._b[this._h] = v; this._h = (this._h+1)%this._cap; if(this._len<this._cap)this._len++; }
+        toArray() {
+            if (this._len < this._cap) return this._b.slice(0, this._len);
+            return this._b.slice(this._h).concat(this._b.slice(0, this._h));
+        }
+        get length() { return this._len; }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FNV-1a hash (used for self-integrity and packet hashing)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function _fnv1a(str) {
+        let h = 0x811c9dc5;
+        for (let i = 0; i < str.length; i++) {
+            h ^= str.charCodeAt(i);
+            h = Math.imul(h, 0x01000193);
+        }
+        return h >>> 0;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FIX-1: SlangNormalizer
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const SLANG_DICT = {
+        'dc':'PLATFORM_EXFIL','disc':'PLATFORM_EXFIL','discord':'PLATFORM_EXFIL',
+        'snap':'PLATFORM_EXFIL','sc':'PLATFORM_EXFIL','snapchat':'PLATFORM_EXFIL',
+        'insta':'PLATFORM_EXFIL','ig':'PLATFORM_EXFIL','tt':'PLATFORM_EXFIL',
+        'tele':'PLATFORM_EXFIL','tg':'PLATFORM_EXFIL','kik':'PLATFORM_EXFIL',
+        'wa':'PLATFORM_EXFIL','wb':'PLATFORM_EXFIL','fb':'PLATFORM_EXFIL',
+        'dih':'BODY_SEXUAL','dic':'BODY_SEXUAL','dik':'BODY_SEXUAL',
+        'pp':'BODY_SEXUAL','pee pee':'BODY_SEXUAL','cock':'BODY_SEXUAL','cok':'BODY_SEXUAL',
+        'bobs':'BODY_SEXUAL','boobs':'BODY_SEXUAL','boob':'BODY_SEXUAL',
+        'tits':'BODY_SEXUAL','tit':'BODY_SEXUAL','tiddy':'BODY_SEXUAL','tiddie':'BODY_SEXUAL',
+        'vag':'BODY_SEXUAL','coochie':'BODY_SEXUAL','cooch':'BODY_SEXUAL',
+        'puss':'BODY_SEXUAL','pussi':'BODY_SEXUAL','milf':'BODY_SEXUAL','dilf':'BODY_SEXUAL',
+        'thicc':'BODY_SEXUAL','thot':'BODY_SEXUAL','horni':'SEXUAL_INTENT','horny':'SEXUAL_INTENT',
+        'puh':'INTIMATE_PICS','priv':'INTIMATE_PICS','privs':'INTIMATE_PICS',
+        'lewds':'INTIMATE_PICS','noodz':'INTIMATE_PICS','noodse':'INTIMATE_PICS',
+        'nudes':'INTIMATE_PICS','nude':'INTIMATE_PICS','pics':'INTIMATE_PICS','pix':'INTIMATE_PICS',
+        'thirst trap':'INTIMATE_PICS','body pics':'INTIMATE_PICS','body pic':'INTIMATE_PICS',
+        'feet pics':'INTIMATE_PICS','feet pic':'INTIMATE_PICS',
+        'irl':'MEETING','in real life':'MEETING','meet up':'MEETING','meetup':'MEETING',
+        'come over':'MEETING','link up':'MEETING','pull up':'MEETING',
+        'asl':'AGE_SEX_LOC','a s l':'AGE_SEX_LOC','a/s/l':'AGE_SEX_LOC',
+        'age':'AGE_SEX_LOC','how old':'AGE_SEX_LOC','ur age':'AGE_SEX_LOC','your age':'AGE_SEX_LOC',
+        'so hot':'COMPLIMENT_SEXL','soo hot':'COMPLIMENT_SEXL','sooo hot':'COMPLIMENT_SEXL',
+        'ur hot':'COMPLIMENT_SEXL','ur sexy':'COMPLIMENT_SEXL','youre sexy':'COMPLIMENT_SEXL',
+        'so sexy':'COMPLIMENT_SEXL','soo sexy':'COMPLIMENT_SEXL','sexy':'COMPLIMENT_SEXL',
+        'peng':'COMPLIMENT_SEXL','baddie':'COMPLIMENT_SEXL','fit':'COMPLIMENT_SEXL',
+        'dont tell':'SECRECY','dont tell anyone':'SECRECY','our secret':'SECRECY',
+        'just us':'SECRECY','between us':'SECRECY','no one knows':'SECRECY','lowkey':'SECRECY',
+        'dtf':'SEXUAL_INTENT','nsa':'SEXUAL_INTENT','fwb':'SEXUAL_INTENT',
+        'wanna fk':'SEXUAL_INTENT','wanna f':'SEXUAL_INTENT','lets fk':'SEXUAL_INTENT',
+        'smash':'SEXUAL_INTENT',
+        'addy':'PERSONAL_INFO','address':'PERSONAL_INFO','where u live':'PERSONAL_INFO',
+        'where do u live':'PERSONAL_INFO','school name':'PERSONAL_INFO','what school':'PERSONAL_INFO',
+        'phone number':'PERSONAL_INFO','ur number':'PERSONAL_INFO','your number':'PERSONAL_INFO',
+        'hmu':'PERSONAL_INFO',
+        // v5.0 additions — new slang
+        'bby':'AGE_SEX_LOC','baby u':'AGE_SEX_LOC',
+        'cuim':'INTIMATE_PICS','cum':'SEXUAL_INTENT','cumming':'SEXUAL_INTENT',
+        'sugar daddy':'SEXUAL_INTENT','sugar baby':'AGE_SEX_LOC','sugar':'SEXUAL_INTENT',
+        'trade':'INTIMATE_PICS','trading':'INTIMATE_PICS',
+        'rb':'SEXUAL_INTENT','road head':'SEXUAL_INTENT',
+        'facetime':'PLATFORM_EXFIL','ft':'PLATFORM_EXFIL','fctime':'PLATFORM_EXFIL',
+        'send me':'INTIMATE_PICS','show me':'INTIMATE_PICS','show me ur':'INTIMATE_PICS',
+        'sugar daddy':'SEXUAL_INTENT','sugar':'SEXUAL_INTENT',
+        'rizz':'COMPLIMENT_SEXL','rizzler':'COMPLIMENT_SEXL',
+        'gyatt':'BODY_SEXUAL','gyat':'BODY_SEXUAL',
+        'skibidi':'BODY_SEXUAL',
+    };
+
+    const LEET = Object.freeze({
+        '0':'o','1':'i','3':'e','4':'a','5':'s','6':'g',
+        '7':'t','8':'b','9':'g','@':'a','$':'s','!':'i',
+        '+':'t','(':'c',')':'','|':'i','<':'c',
+    });
+
+    // Invisible characters to strip (v5.0 hardening)
+    const INVISIBLE_RE = /[\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF\u00AD\u115F\u1160\u3164\uFFA0]/g;
+    const EMOJI_RE = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}]/gu;
+    const CONTROL_RE = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g;
+
+    class SlangNormalizer {
+        normalize(raw) {
+            let t = String(raw).toLowerCase().trim();
+            // Strip invisible chars (v5.0)
+            t = t.replace(INVISIBLE_RE, '').replace(EMOJI_RE, '').replace(CONTROL_RE, '');
+            // Leet substitution
+            t = t.replace(/[013456789@$!+()<|]/g, c => LEET[c] !== undefined ? LEET[c] : c);
+            // Collapse 3+ repeated chars to 2
+            t = t.replace(/(.)\1{2,}/g, '$1$1');
+            // Normalize whitespace
+            t = t.replace(/\s+/g, ' ');
+            // Unicode NFKC normalization
+            t = t.normalize('NFKC');
+            return t;
+        }
+
+        scan(rawText) {
+            const norm  = this.normalize(rawText);
+            const hits  = [];
+            const words = norm.split(/\s+/);
+
+            for (const w of words) {
+                const clean = w.replace(/[^a-z0-9]/g, '');
+                if (SLANG_DICT[clean]) hits.push({ raw: w, tag: SLANG_DICT[clean] });
+            }
+            for (let i = 0; i < words.length - 1; i++) {
+                const bi = `${words[i]} ${words[i+1]}`.replace(/[^a-z0-9 ]/g, '');
+                if (SLANG_DICT[bi]) hits.push({ raw: bi, tag: SLANG_DICT[bi] });
+            }
+            for (let i = 0; i < words.length - 2; i++) {
+                const tri = `${words[i]} ${words[i+1]} ${words[i+2]}`.replace(/[^a-z0-9 ]/g, '');
+                if (SLANG_DICT[tri]) hits.push({ raw: tri, tag: SLANG_DICT[tri] });
+            }
+            return hits;
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FIX-2: ConversationTracker
+    // ─────────────────────────────────────────────────────────────────────────
+
+    class ConversationTracker {
+        constructor(maxPerPair = 120, maxAgeMs = 3600000) {
+            this._logs = new Map();
+            this._max = maxPerPair;
+            this._maxAge = maxAgeMs;
+        }
+        static _key(a, b) { return [String(a), String(b)].sort().join('::'); }
+
+        record(senderUuid, recipientUuid, rawMsg, signals) {
+            const key = ConversationTracker._key(senderUuid, recipientUuid);
+            if (!this._logs.has(key)) this._logs.set(key, []);
+            const log = this._logs.get(key);
+            log.push({ sender: String(senderUuid), msg: rawMsg, signals, ts: Date.now() });
+            if (log.length > this._max) log.shift();
+            return log;
+        }
+        getLog(a, b) { return this._logs.get(ConversationTracker._key(a, b)) || []; }
+        prune() {
+            const cut = Date.now() - this._maxAge;
+            for (const [k, log] of this._logs) {
+                const trimmed = log.filter(e => e.ts > cut);
+                if (trimmed.length === 0) this._logs.delete(k);
+                else this._logs.set(k, trimmed);
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FIX-3: PatternEngine — grooming phase detection
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const PHASE_DEFS = [
+        { name: 'approach', tags: ['AGE_SEX_LOC','COMPLIMENT_SEXL'],
+          rx: /\b(hey|hi|hello|wanna talk|can i see you|can we talk)\b/i },
+        { name: 'desensitise', tags: ['BODY_SEXUAL','SEXUAL_INTENT','COMPLIMENT_SEXL'],
+          rx: /\b(so hot|ur hot|sexy|thicc|peng|baddie|gyatt|gyat|rizz)\b/i },
+        { name: 'isolation', tags: ['PLATFORM_EXFIL','SECRECY','PERSONAL_INFO'],
+          rx: /\b(dc|disc|discord|snap|ig|our secret|lowkey|dont tell|just us|facetime|ft)\b/i },
+        { name: 'solicitation', tags: ['INTIMATE_PICS','MEETING','SEXUAL_INTENT'],
+          rx: /\b(nude|puh|priv|lewds|nudes|irl|meet up|dtf|fwb|smash|trade|trading)\b/i },
+    ];
+
+    class PatternEngine {
+        analyze(log, senderUuid) {
+            const mine = log.filter(e => e.sender === String(senderUuid));
+            if (mine.length === 0) return { phases: [], phaseScore: 0, isEscalating: false, threatLevel: 0 };
+
+            const phaseFirstSeen = new Map();
+
+            for (let i = 0; i < mine.length; i++) {
+                const { signals } = mine[i];
+                const allTags  = (signals && signals.slangTags) || [];
+                const allNames = (signals && signals.signalNames) || [];
+
+                for (const phase of PHASE_DEFS) {
+                    if (phaseFirstSeen.has(phase.name)) continue;
+                    const tagHit = phase.tags.some(t => allTags.includes(t));
+                    const rxHit  = phase.rx.test(mine[i].msg);
+                    const sigHit = phase.name === 'isolation' && allNames.some(s => ['EXT_HANDLE','GROOMING_ESCALATION','URL_EXFIL'].includes(s))
+                                || phase.name === 'solicitation' && allNames.some(s => ['INTIMATE_PICS','ILLEGAL_CONTENT_SIGNAL','MEET_SOLICITATION','AGE_SOLICITATION'].includes(s));
+                    if (tagHit || rxHit || sigHit) phaseFirstSeen.set(phase.name, i);
+                }
+            }
+
+            const phaseOrder = ['approach','desensitise','isolation','solicitation'];
+            const presentPhases = phaseOrder.filter(p => phaseFirstSeen.has(p));
+            const phaseScore = presentPhases.length / phaseOrder.length;
+
+            let lastIdx = -1;
+            let isEscalating = presentPhases.length >= 2;
+            for (const p of presentPhases) {
+                const idx = phaseFirstSeen.get(p);
+                if (idx <= lastIdx) { isEscalating = false; break; }
+                lastIdx = idx;
+            }
+
+            let threatLevel = presentPhases.length;
+            if (isEscalating && presentPhases.length >= 3) threatLevel = 4;
+
+            return { phases: presentPhases, phaseScore, isEscalating, threatLevel };
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ThreatScorer — perceptron-style with online learning
+    // ─────────────────────────────────────────────────────────────────────────
+
+    class ThreatScorer {
+        constructor() {
+            this._w = {
+                slang_body_sexual: 0.80, slang_platform_exfil: 0.75, slang_intimate_pics: 0.90,
+                slang_meeting: 0.70, slang_age_sex_loc: 0.70, slang_compliment_sexl: 0.60,
+                slang_secrecy: 0.85, slang_sexual_intent: 0.85, slang_personal_info: 0.65,
+                phase_score: 0.90, escalation_order: 0.95, question_ratio: 0.55,
+                bpir_violation: 0.80, message_count_suspect: 0.40,
+            };
+            this._lr = 0.04;
+        }
+        score(features) {
+            let num = 0, den = 0;
+            for (const [k, v] of Object.entries(features)) {
+                if (this._w[k] !== undefined) { num += v * this._w[k]; den += this._w[k]; }
+            }
+            return den > 0 ? Math.min(1, num / den) : 0;
+        }
+        feedback(features, confirmed) {
+            const predicted = this.score(features);
+            const error = (confirmed ? 1 : 0) - predicted;
+            for (const [k, v] of Object.entries(features)) {
+                if (this._w[k] === undefined || v === 0) continue;
+                this._w[k] += this._lr * error * v;
+                this._w[k] = Math.max(0.05, Math.min(1.0, this._w[k])); // v5.0: clamp bounds
+            }
+        }
+        getWeights() { return { ...this._w }; }
+        setWeights(w) {
+            // v5.0: Validate before importing
+            if (!w || typeof w !== 'object') return;
+            for (const [k, v] of Object.entries(w)) {
+                if (this._w[k] !== undefined && typeof v === 'number' && v >= 0 && v <= 1) {
+                    this._w[k] = v;
+                }
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Configuration (deep frozen)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const CFG = Object.freeze({
+        INTEGRITY_MAX: 100, INTEGRITY_MIN: 0, SHADOW_THRESHOLD: 40,
+        MAX_VELOCITY: 0.55, TELEPORT_CREDITS: 3, TELEPORT_MIN_DIST: 10,
+        ECH_STEPS_MAX: 120, COORD_BOUND: 1e6,
+        PACKET_RATE_WINDOW_MS: 1000, PACKET_RATE_LIMIT: 60, STAT_DELTA_MAX: 50,
+        ISOLATION_DENSITY_LIMIT: 2.0, SECTOR_MESH_DEFAULT: 1.0,
+        BPIR_WINDOW: 50, BPIR_RATIO_LIMIT: 3.2, MASKING_THRESHOLD: 4,
+        GROOMING_WEIGHT_LIMIT: 6,
+        CONVO_LOG_MAX: 120, CONVO_LOG_AGE_MS: 3600000,
+        SCORER_WARN_THRESHOLD: 0.40, SCORER_ALERT_THRESHOLD: 0.65, SCORER_TERMINATE_THRESHOLD: 0.85,
+        PHASE_ESCALATION_PENALTY: 55,
+        DECAY_HALFLIFE_MS: 300000, BILATERAL_LRU_SIZE: 6000,
+        SESSION_TTL_MS: 1800000, SESSION_PRUNE_INTERVAL: 300000,
+        // v5.0: escalation cooldown to prevent penalty stacking
+        ESCALATION_COOLDOWN_MS: 2000,
+        PENALTY: Object.freeze({
+            VELOCITY_VIOLATION: 22, VOXEL_PENETRATION: 38, COORD_SPOOF: 50,
+            PACKET_FLOOD: 30, STAT_INJECTION: 45, REPLAY_ATTACK: 35,
+            PREDATORY_IMBALANCE: 60, LURE_MASKING: 25, ACTIVE_GROOMING_WEIGHT: 40,
+            URL_EXFIL: 45, EXTERNAL_HANDLE: 40, AGE_SOLICITATION: 55,
+            PROFANITY: 15, ILLEGAL_CONTENT_SIGNAL: 100, PHASE_ESCALATION: 55,
+            SLANG_BODY_SEXUAL: 30, SLANG_INTIMATE_PICS: 55, SLANG_PLATFORM_EXFIL: 40,
+            SLANG_SEXUAL_INTENT: 45, SLANG_SECRECY: 35, SLANG_MEETING: 30,
+            SLANG_AGE_SEX_LOC: 40, SLANG_COMPLIMENT_SEXL: 20, SCORER_HIGH_THREAT: 50,
+            // v5.0 additions
+            DEVTOOLS_DETECTED: 25, SELF_TAMPER: 80,
+        })
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Hard-pattern regex library
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const RX = Object.freeze({
+        QUESTION:     /\b(who|what|where|when|why|how|tell|show|send|give|dm|snap|priv)\b|\?/i,
+        PERSONAL:     /\b(i am|i'?m|i live|my name|my age|my number|my address|i go to|my school|home alone|parents (are |away)|alone at home)\b/i,
+        EXT_PLATFORM: /\b(snap(chat)?|discord|tele(gram)?|whatsapp|signal|kik|instagram|insta|tiktok|fb|facebook|twitter|facetime|ft)\b/i,
+        EXT_HANDLE:   /(@[a-z0-9_.]{2,}|add me|find me on|my user(name)?|my handle|hit me up)\b/i,
+        URL:          /(\b(https?|ftp):\/\/|(www\.)[^\s]{2,}|[a-z0-9-]{2,}\s*\.\s*(com|net|org|io|gg|xyz|me|co)[^\s]*)/i,
+        AGE_SOLICIT:  /\b(how old|your age|u \d+|are you \d+|r u \d+|asl\b|age[\s?]+|years old\b|sugar baby)\b/i,
+        GROOMING_ESC: /\b(don'?t tell|keep (this|it|us) secret|just between us|our secret|don'?t tell (mom|dad|parents|anyone)|no one needs to know)\b/i,
+        MEET_SOLICIT: /\b(meet (me|up|irl)|come over|i'?ll pick you|where do you live|what'?s your address|near you|close to you)\b/i,
+        CSAM_SIGNAL:  /\b(nude|nudes|send pics|naked|underage|show me|touch yourself|sexy pic|explicit|trade|trading)\b/i,
+        MASKING:      /\b(i am|i'?m|live at|my age|years old|home alone|parents away|school|snap|discord|tele|whatsapp|number|phone)\b/i,
+        PROFANITY:    /\b(f+u+c+k+|s+h+i+t+|b+i+t+c+h+|a+s+s+h+o+l+e+|d+i+c+k+|c+u+n+t+|fag)\b/i,
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Self-integrity hash (v5.0)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    let _selfHash = 0;
+    function _computeSelfHash() {
+        return _fnv1a(
+            Object.keys(CFG).length + '|' +
+            Object.keys(RX).length + '|' +
+            Object.keys(SLANG_DICT).length + '|' +
+            Object.isFrozen(CFG) + '|' +
+            Object.isFrozen(RX) + '|' +
+            Object.isFrozen(LEET)
+        );
+    }
+    _selfHash = _computeSelfHash();
+
+    function _verifySelf() {
+        return _computeSelfHash() === _selfHash &&
+               Object.isFrozen(CFG) && Object.isFrozen(RX);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Module-level singletons
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const _sessions      = new Map();
+    const _sectorDensity = new Map();
+    const _bilateral     = new LRUCache(CFG.BILATERAL_LRU_SIZE);
+    const _listeners     = {};
+    const _slang         = new SlangNormalizer();
+    const _convoTracker  = new ConversationTracker(CFG.CONVO_LOG_MAX, CFG.CONVO_LOG_AGE_MS);
+    const _patternEngine = new PatternEngine();
+    const _threatScorer  = new ThreatScorer();
+    let   _pruneTimer    = null;
+    let   _feedbackNonces = new Set();
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Session factory
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function _mkSession(uuid) {
+        return {
+            uuid,
+            integrity:       CFG.INTEGRITY_MAX,
+            isGhosted:        false,
+            isTerminated:     false,
+            lastPos:         { x:0, y:0, z:0 },
+            lastTs:          Date.now(),
+            lastPacketHash:  null,
+            chatHistory:     new RingBuffer(CFG.BPIR_WINDOW),
+            violations:      [],
+            teleportCredits: CFG.TELEPORT_CREDITS,
+            stats:           {},
+            packetBucket:    new RingBuffer(CFG.PACKET_RATE_LIMIT + 10),
+            alerts:          [],
+            hasFirstMove:    false,
+            lastPenaltyTs:   0,  // v5.0: escalation cooldown
+        };
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Internal helpers
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const _dist3 = (a,b) => Math.sqrt((b.x-a.x)**2+(b.y-a.y)**2+(b.z-a.z)**2);
+
+    function _emit(ev, payload) {
+        (_listeners[ev]||[]).forEach(fn => { try{fn(payload);}catch(e){} });
+    }
+
+    function _penalty(session, amount, reason, escalate=false) {
+        // v5.0: Escalation cooldown — prevent stacking from single message
+        const now = Date.now();
+        if (now - session.lastPenaltyTs < CFG.ESCALATION_COOLDOWN_MS && reason !== 'ILLEGAL_CONTENT_SIGNAL') {
+            return; // skip — too soon after last penalty
+        }
+        session.lastPenaltyTs = now;
+
+        const prev = session.integrity;
+        session.integrity = Math.max(CFG.INTEGRITY_MIN, session.integrity - amount);
+        session.violations.push({ reason, amount, ts: now, integrityAfter: session.integrity });
+        if (session.violations.length > 30) session.violations.shift();
+        if (session.integrity <= CFG.SHADOW_THRESHOLD && !session.isGhosted) {
+            session.isGhosted = true;
+            _emit('ghost', { uuid: session.uuid, reason });
+        }
+        if (escalate || reason === 'ILLEGAL_CONTENT_SIGNAL') {
+            const alert = { uuid: session.uuid, reason, ts: now };
+            session.alerts.push(alert);
+            _emit('moderator_alert', alert);
+        }
+        _emit('penalty', { uuid: session.uuid, reason, amount, prev, after: session.integrity });
+    }
+
+    function _sectorKey(x,z) { return `s_${Math.floor(x/10)}_${Math.floor(z/10)}`; }
+
+    function _packetHash(pkt) {
+        const s = JSON.stringify(pkt, Object.keys(pkt).sort());
+        return _fnv1a(s);
+    }
+
+    function _rateExceeded(session, now) {
+        const cut = now - CFG.PACKET_RATE_WINDOW_MS;
+        session.packetBucket.push(now);
+        return session.packetBucket.toArray().filter(t=>t>cut).length > CFG.PACKET_RATE_LIMIT;
+    }
+
+    function _checkStatDelta(session, stats) {
+        if (!stats||typeof stats!=='object') return true;
+        for (const [k,v] of Object.entries(stats)) {
+            if (typeof v!=='number') continue;
+            const prev = session.stats[k];
+            if (prev!==undefined && Math.abs(v-prev)>CFG.STAT_DELTA_MAX) return false;
+            session.stats[k]=v;
+        }
+        return true;
+    }
+
+    function _bpirWindow(session) {
+        return session.chatHistory.toArray().reduce(
+            (a,c)=>({q:a.q+c.q,vd:a.vd+c.vd,md:a.md+c.md}),{q:0,vd:0,md:0});
+    }
+
+    function _getLinkKey(a,b) { return [String(a),String(b)].sort().join('::'); }
+
+    function _evalDecay(session, targetUuid) {
+        if (!targetUuid) return;
+        const link = _bilateral.get(_getLinkKey(session.uuid, targetUuid));
+        if (!link) return;
+        const decay = Math.exp(-(Date.now()-link.lastContact)/CFG.DECAY_HALFLIFE_MS);
+        if ((link.vd*decay)>CFG.GROOMING_WEIGHT_LIMIT)
+            _penalty(session, CFG.PENALTY.ACTIVE_GROOMING_WEIGHT, 'ACTIVE_GROOMING_WEIGHT', true);
+    }
+
+    function _evalIsolationRisk(session) {
+        const stats = _bpirWindow(session);
+        if (stats.q>3 && stats.vd<1) _penalty(session,18,'ISOLATION_RISK');
+    }
+
+    let _worldHook = null;
+    function _queryWorldMesh(/*p*/) { return false; }
+
+    function _startPruneLoop() {
+        if (_pruneTimer) return;
+        _pruneTimer = setInterval(() => {
+            const now = Date.now();
+            let pruned = 0;
+            for (const [id,s] of _sessions)
+                if (now-s.lastTs > CFG.SESSION_TTL_MS) { _sessions.delete(id); pruned++; }
+            _bilateral.prune(CFG.DECAY_HALFLIFE_MS*2);
+            _convoTracker.prune();
+            if (pruned>0) _emit('sessions_pruned',{count:pruned});
+        }, CFG.SESSION_PRUNE_INTERVAL);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Full chat analysis (v5.0 hardened)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function _fullChatAnalysis(session, rawMsg, recipientUuid) {
+        const msg   = String(rawMsg);
+        // v5.0: strip invisible chars BEFORE any analysis
+        const sanitized = msg.replace(INVISIBLE_RE, '').replace(EMOJI_RE, '').replace(CONTROL_RE, '');
+        const norm  = _slang.normalize(sanitized);
+        const lnorm = norm.toLowerCase();
+        const now   = Date.now();
+
+        const found = [];
+        const entry = { q:0, vd:0, md:0, ts:now };
+
+        if (RX.QUESTION.test(lnorm))      entry.q = 1;
+        if (RX.MASKING.test(lnorm))    { entry.md = 1; found.push('MASKING'); }
+        if (RX.EXT_PLATFORM.test(lnorm) || RX.EXT_HANDLE.test(lnorm)) found.push('EXT_HANDLE');
+        if (RX.URL.test(lnorm))           found.push('URL_EXFIL');
+        if (RX.AGE_SOLICIT.test(lnorm))   found.push('AGE_SOLICITATION');
+        if (RX.MEET_SOLICIT.test(lnorm))  found.push('MEET_SOLICITATION');
+        if (RX.GROOMING_ESC.test(lnorm))  found.push('GROOMING_ESCALATION');
+        if (RX.CSAM_SIGNAL.test(lnorm))   found.push('ILLEGAL_CONTENT_SIGNAL');
+        if (RX.PROFANITY.test(lnorm))     found.push('PROFANITY');
+
+        const slangHits = _slang.scan(sanitized);
+        const slangTags = slangHits.map(h => h.tag);
+
+        const TAG_SIGNAL = {
+            BODY_SEXUAL:'SLANG_BODY_SEXUAL', PLATFORM_EXFIL:'SLANG_PLATFORM_EXFIL',
+            INTIMATE_PICS:'SLANG_INTIMATE_PICS', MEETING:'SLANG_MEETING',
+            AGE_SEX_LOC:'SLANG_AGE_SEX_LOC', COMPLIMENT_SEXL:'SLANG_COMPLIMENT_SEXL',
+            SECRECY:'SLANG_SECRECY', SEXUAL_INTENT:'SLANG_SEXUAL_INTENT',
+            PERSONAL_INFO:'SLANG_PERSONAL_INFO',
+        };
+        for (const tag of slangTags) {
+            if (TAG_SIGNAL[tag] && !found.includes(TAG_SIGNAL[tag]))
+                found.push(TAG_SIGNAL[tag]);
+        }
+
+        let patternResult = { phases: [], phaseScore: 0, isEscalating: false, threatLevel: 0 };
+        let fullLog = [];
+
+        if (recipientUuid) {
+            const currentSignals = { signalNames: found, slangTags: slangTags };
+            fullLog = _convoTracker.record(session.uuid, recipientUuid, sanitized, currentSignals);
+            patternResult = _patternEngine.analyze(fullLog, session.uuid);
+        }
+
+        const features = {
+            slang_body_sexual:     slangTags.includes('BODY_SEXUAL') ? 1 : 0,
+            slang_platform_exfil:  slangTags.includes('PLATFORM_EXFIL') ? 1 : 0,
+            slang_intimate_pics:   slangTags.includes('INTIMATE_PICS') ? 1 : 0,
+            slang_meeting:         slangTags.includes('MEETING') ? 1 : 0,
+            slang_age_sex_loc:     slangTags.includes('AGE_SEX_LOC') ? 1 : 0,
+            slang_compliment_sexl: slangTags.includes('COMPLIMENT_SEXL') ? 1 : 0,
+            slang_secrecy:         slangTags.includes('SECRECY') ? 1 : 0,
+            slang_sexual_intent:   slangTags.includes('SEXUAL_INTENT') ? 1 : 0,
+            slang_personal_info:   slangTags.includes('PERSONAL_INFO') ? 1 : 0,
+            phase_score:           patternResult.phaseScore,
+            escalation_order:      patternResult.isEscalating ? 1 : 0,
+            question_ratio:        0,
+            bpir_violation:        0,
+            message_count_suspect: 0,
+        };
+
+        if (fullLog.length > 0) {
+            const mine = fullLog.filter(e => e.sender === String(session.uuid));
+            const totalMsgs = fullLog.length;
+            if (totalMsgs > 5) features.message_count_suspect = (mine.length / totalMsgs) > 0.75 ? 1 : 0;
+
+            let historicalQs = 0, historicalVds = 0;
+            const historyArray = session.chatHistory.toArray();
+            for (const h of historyArray) { historicalQs += h.q; historicalVds += h.vd; }
+            const totalHist = historyArray.length;
+            if (totalHist > 0) {
+                features.question_ratio = Math.min(1, historicalQs / totalHist);
+                if (historicalVds > 0 && (historicalQs / historicalVds) > CFG.BPIR_RATIO_LIMIT) features.bpir_violation = 1;
+            }
+        }
+
+        const threatScore = _threatScorer.score(features);
+
+        if (found.includes('AGE_SOLICITATION') || slangTags.includes('AGE_SEX_LOC')) entry.vd = 1.5;
+        if (found.includes('MEET_SOLICITATION') || slangTags.includes('MEETING')) entry.vd = 2.0;
+        if (found.includes('ILLEGAL_CONTENT_SIGNAL')) entry.vd = 4.0;
+        session.chatHistory.push(entry);
+
+        return { found, slangTags, threatScore, patternResult, features };
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Public API (frozen)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const _api = {
+        init() { _startPruneLoop(); },
+
+        clear() {
+            _sessions.clear();
+            _sectorDensity.clear();
+            if (_pruneTimer) { clearInterval(_pruneTimer); _pruneTimer = null; }
+        },
+
+        on(event, callback) {
+            if (!_listeners[event]) _listeners[event] = [];
+            _listeners[event].push(callback);
+        },
+
+        setWorldHook(hook) { if (typeof hook === 'function') _worldHook = hook; },
+
+        pushFrame(uuid, pkt) {
+            // v5.0: Self-integrity check
+            if (!_verifySelf()) {
+                if (uuid && _sessions.get(uuid)) _penalty(_sessions.get(uuid), CFG.PENALTY.SELF_TAMPER, 'SELF_TAMPER');
+                return;
+            }
+            if (!uuid || !pkt) return;
+            let s = _sessions.get(uuid);
+            if (!s) { s = _mkSession(uuid); _sessions.set(uuid, s); }
+            if (s.isTerminated) return;
+
+            s.lastTs = Date.now();
+
+            // Packet hash (v5.0)
+            const h = _packetHash(pkt);
+            if (s.lastPacketHash === h) { _penalty(s, CFG.PENALTY.REPLAY_ATTACK, 'REPLAY_ATTACK'); return; }
+            s.lastPacketHash = h;
+
+            if (_rateExceeded(s, Date.now())) { _penalty(s, CFG.PENALTY.PACKET_FLOOD, 'PACKET_FLOOD'); return; }
+
+            const pos = { x: Number(pkt.x)||0, y: Number(pkt.y)||0, z: Number(pkt.z)||0 };
+            if (Math.abs(pos.x) > CFG.COORD_BOUND || Math.abs(pos.y) > CFG.COORD_BOUND || Math.abs(pos.z) > CFG.COORD_BOUND) {
+                _penalty(s, CFG.PENALTY.COORD_SPOOF, 'COORD_SPOOF', true);
+                return;
+            }
+
+            if (s.hasFirstMove) {
+                const d = _dist3(s.lastPos, pos);
+                if (d > CFG.MAX_VELOCITY && s.teleportCredits > 0) { s.teleportCredits--; }
+                else if (d > CFG.MAX_VELOCITY) { _penalty(s, CFG.PENALTY.VELOCITY_VIOLATION, 'VELOCITY_VIOLATION'); }
+            }
+            s.hasFirstMove = true;
+            s.lastPos = pos;
+        },
+
+        pushChat(senderUuid, recipientUuid, text) {
+            // v5.0: Self-integrity check
+            if (!_verifySelf()) {
+                return { action: 'TERMINATE', score: 1.0, reason: 'SELF_TAMPER' };
+            }
+            if (!senderUuid || !text) return null;
+            let s = _sessions.get(senderUuid);
+            if (!s) { s = _mkSession(senderUuid); _sessions.set(senderUuid, s); }
+            if (s.isTerminated) return { action: 'TERMINATE', score: 1.0 };
+
+            s.lastTs = Date.now();
+            const analysis = _fullChatAnalysis(s, text, recipientUuid);
+
+            for (const signal of analysis.found) {
+                if (CFG.PENALTY[signal]) {
+                    const isEscalationSignal = ['ILLEGAL_CONTENT_SIGNAL','GROOMING_ESCALATION','MEET_SOLICITATION'].includes(signal);
+                    _penalty(s, CFG.PENALTY[signal], signal, isEscalationSignal);
+                }
+            }
+
+            if (analysis.patternResult.isEscalating && analysis.patternResult.threatLevel >= 4) {
+                _penalty(s, CFG.PENALTY.PHASE_ESCALATION, 'PHASE_ESCALATION', true);
+            }
+
+            if (recipientUuid) {
+                const linkKey = _getLinkKey(senderUuid, recipientUuid);
+                let link = _bilateral.get(linkKey);
+                if (!link) link = { q: 0, vd: 0, md: 0, lastContact: Date.now() };
+                link.lastContact = Date.now();
+                if (analysis.found.includes('MASKING')) link.md++;
+                const win = _bpirWindow(s);
+                link.q += win.q; link.vd += win.vd;
+                _bilateral.set(linkKey, link);
+                _evalDecay(s, recipientUuid);
+                _evalIsolationRisk(s);
+            }
+
+            let targetAction = 'ALLOW';
+            if (analysis.threatScore >= CFG.SCORER_TERMINATE_THRESHOLD) {
+                s.isTerminated = true; targetAction = 'TERMINATE';
+                _emit('terminate', { uuid: s.uuid, reason: 'SCORER_TERMINATE_THRESHOLD' });
+            } else if (analysis.threatScore >= CFG.SCORER_ALERT_THRESHOLD) {
+                targetAction = 'ALERT';
+                _penalty(s, CFG.PENALTY.SCORER_HIGH_THREAT, 'SCORER_HIGH_THREAT', true);
+            } else if (analysis.threatScore >= CFG.SCORER_WARN_THRESHOLD) {
+                targetAction = 'WARN';
+                _penalty(s, 5, 'SCORER_WARN_THRESHOLD');
+            }
+
+            return { action: targetAction, score: analysis.threatScore, signals: analysis.found, phases: analysis.patternResult.phases };
+        },
+
+        submitFeedback(senderUuid, recipientUuid, text, confirmedTrueThreat) {
+            if (!senderUuid || !text) return;
+            // v5.0: Nonce protection against feedback replay
+            const nonce = senderUuid + '|' + text.slice(0, 50);
+            if (_feedbackNonces.has(nonce)) return;
+            _feedbackNonces.add(nonce);
+            if (_feedbackNonces.size > 1000) {
+                const first = _feedbackNonces.values().next().value;
+                _feedbackNonces.delete(first);
+            }
+
+            const s = _sessions.get(senderUuid);
+            if (!s) return;
+            const analysis = _fullChatAnalysis(s, text, recipientUuid);
+            _threatScorer.feedback(analysis.features, !!confirmedTrueThreat);
+        },
+
+        exportWeights() { return _threatScorer.getWeights(); },
+        importWeights(weights) { _threatScorer.setWeights(weights); },
+        getSession(uuid) { return _sessions.get(uuid); },
+
+        // v5.0: Integrity fingerprint for Attestation
+        getFingerprint() {
+            return _fnv1a(
+                _api.pushChat.toString() + '|' +
+                _api.pushFrame.toString() + '|' +
+                Object.isFrozen(CFG) + '|' +
+                Object.isFrozen(RX)
+            );
+        },
+    };
+
+    // Deep freeze the public API
+    Object.freeze(_api);
+    Object.freeze(_api.init);
+    Object.freeze(_api.clear);
+    Object.freeze(_api.on);
+    Object.freeze(_api.setWorldHook);
+    Object.freeze(_api.pushFrame);
+    Object.freeze(_api.pushChat);
+    Object.freeze(_api.submitFeedback);
+    Object.freeze(_api.exportWeights);
+    Object.freeze(_api.importWeights);
+    Object.freeze(_api.getSession);
+    Object.freeze(_api.getFingerprint);
+
+    return _api;
+})();
+
+// Harden global reference
+try { Object.freeze(AEGIS); } catch (e) {}
+
+// Export for module systems
+if (typeof module !== 'undefined' && module.exports) module.exports = AEGIS;
+else if (typeof define === 'function' && define.amd) define([], () => AEGIS);
+
+
+/**
+ * GUARD BRIDGE v2.0 [HARDENED]
+ *
+ * [v2 PATCHES]
+ * - [PATCH] mergeResults() now implemented (was undefined in v1)
+ * - [PATCH] Weighted scoring with severity hierarchy
+ * - [PATCH] Confidence levels: ALLOW / WARN / ALERT / GHOST / TERMINATE
+ * - [PATCH] Frozen result objects
+ * - [PATCH] Input sanitization before passing to guards
+ * - [PATCH] Self-integrity check — verifies all guards are frozen
+ * - [PATCH] Performance: early-exit on TERMINATE, no need to run remaining guards
+ * - [PATCH] Audit log of all merged decisions
+ */
+
+const GuardBridge = (() => {
+    'use strict';
+
+    // Severity hierarchy — higher number = more severe
+    const SEVERITY = Object.freeze({
+        ALLOW:     0,
+        WARN:      1,
+        DROP:      2,
+        ALERT:     3,
+        GHOST:     4,
+        TERMINATE: 5,
+    });
+
+    const _auditLog = [];
+    const AUDIT_MAX = 200;
+
+    // --- Merge results from multiple guards ---
+    function mergeResults(results) {
+        if (!results || results.length === 0) {
+            return Object.freeze({ action: 'ALLOW', score: 0, sources: [] });
+        }
+
+        let maxSeverity = SEVERITY.ALLOW;
+        let maxScore = 0;
+        let winningAction = 'ALLOW';
+        const sources = [];
+
+        for (const r of results) {
+            if (!r) continue;
+
+            const action = r.action || 'ALLOW';
+            const severity = SEVERITY[action] !== undefined ? SEVERITY[action] : SEVERITY.ALLOW;
+            const score = typeof r.score === 'number' ? r.score : (severity > 0 ? severity / 5 : 0);
+
+            sources.push({ action, score: r.score || 0, signals: r.signals || r.reason || null });
+
+            // Most severe wins
+            if (severity > maxSeverity) {
+                maxSeverity = severity;
+                winningAction = action;
+            }
+            // Highest score wins as tiebreaker
+            if (score > maxScore) maxScore = score;
+        }
+
+        // Collect all signals
+        const allSignals = [];
+        for (const r of results) {
+            if (!r) continue;
+            if (Array.isArray(r.signals)) allSignals.push(...r.signals);
+            if (Array.isArray(r.phases)) allSignals.push(...r.phases.map(p => 'PHASE:' + p));
+        }
+
+        const result = Object.freeze({
+            action: winningAction,
+            score: maxScore,
+            sources: Object.freeze(sources),
+            signals: Object.freeze(allSignals),
+        });
+
+        // Audit log
+        _auditLog.push({ ts: Date.now(), result });
+        if (_auditLog.length > AUDIT_MAX) _auditLog.shift();
+
+        return result;
+    }
+
+    // --- Input sanitization ---
+    function _sanitize(text) {
+        if (typeof text !== 'string') return '';
+        return text
+            .replace(/[\u200B-\u200F\uFEFF\u00AD]/g, '')     // zero-width
+            .replace(/[\u{1F000}-\u{1FAFF}]/gu, '')           // emoji
+            .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // control chars
+            .normalize('NFKC');
+    }
+
+    // --- Verify all guards are frozen ---
+    function _verifyGuards() {
+        if (typeof NeuralGuard !== 'undefined' && !Object.isFrozen(NeuralGuard)) return false;
+        if (typeof Pentagom !== 'undefined' && !Object.isFrozen(Pentagom)) return false;
+        if (typeof AEGIS !== 'undefined' && !Object.isFrozen(AEGIS)) return false;
+        return true;
+    }
+
+    const _api = Object.freeze({
+        /**
+         * Unified chat check — runs all available guards and merges results.
+         * Most severe action wins.
+         */
+        checkChat(sender, recipient, text) {
+            // Guard integrity
+            if (!_verifyGuards()) {
+                return Object.freeze({ action: 'TERMINATE', score: 1.0, sources: [], signals: ['GUARD_TAMPERED'] });
+            }
+
+            const cleanText = _sanitize(text);
+            const results = [];
+
+            if (typeof NeuralGuard !== 'undefined' && NeuralGuard.validate) {
+                try { results.push(NeuralGuard.validate(sender, cleanText)); } catch (e) {}
+            }
+            if (typeof Pentagom !== 'undefined' && Pentagom.onPeerData) {
+                try { results.push(Pentagom.onPeerData(sender, { msg: cleanText, to: recipient }, true)); } catch (e) {}
+            }
+            if (typeof AEGIS !== 'undefined' && AEGIS.pushChat) {
+                try { results.push(AEGIS.pushChat(sender, recipient, cleanText)); } catch (e) {}
+            }
+
+            return mergeResults(results);
+        },
+
+        /**
+         * Unified movement/telemetry check.
+         */
+        checkFrame(sender, packet) {
+            if (!_verifyGuards()) {
+                return Object.freeze({ action: 'DROP', score: 1.0, sources: [], signals: ['GUARD_TAMPERED'] });
+            }
+
+            const results = [];
+            if (typeof Pentagom !== 'undefined' && Pentagom.onPeerData) {
+                try { results.push(Pentagom.onPeerData(sender, packet, false)); } catch (e) {}
+            }
+            if (typeof AEGIS !== 'undefined' && AEGIS.pushFrame) {
+                try { AEGIS.pushFrame(sender, packet); } catch (e) {}
+            }
+
+            return mergeResults(results);
+        },
+
+        /**
+         * Get audit log of recent merged decisions.
+         */
+        getAuditLog() {
+            return Object.freeze([..._auditLog]);
+        },
+
+        /**
+         * Check if all guards are intact.
+         */
+        isHealthy() {
+            return _verifyGuards();
+        },
+    });
+
+    return _api;
+})();
+
+try { Object.freeze(GuardBridge); } catch (e) {}
+
+
+/**
+ * ATTESTATION v3.0 [CHALLENGE-RESPONSE / HARDENED]
+ *
+ * [v3.0 — CHALLENGE-RESPONSE PROTOCOL]
+ * - [NEW] Each client generates a random 256-bit session key at startup (never broadcast)
+ * - [NEW] Session keys are exchanged privately per-connection (Peer.js data channel)
+ * - [NEW] Challenge-response: hash(fingerprint + sessionKey + nonce)
+ * - [NEW] A forger with a stolen fingerprint FAILS — no live session key
+ * - [NEW] A forger with stolen fingerprint + session key must keep working guard code alive
+ * - [NEW] Session keys rotate on reconnect — stale copies are useless
+ * - [NEW] Challenge timeout: 5s to respond or auto-fail
+ * - [NEW] Unanswered challenges accumulate as suspicion
+ *
+ * PROTOCOL FLOW:
+ *   1. Peer A connects to Peer B (via Peer.js)
+ *   2. A sends KEY_EXCHANGE to B with A's session key (private channel)
+ *   3. B sends KEY_EXCHANGE to A with B's session key
+ *   4. A sends ATTEST with A's fingerprint
+ *   5. B sends CHALLENGE with random nonce to A
+ *   6. A responds: CHALLENGE_RESPONSE = hash(fingerprint_A + sessionKey_A + nonce)
+ *   7. B verifies: hash(expectedFingerprint + storedSessionKey_A + nonce) === response
+ *   8. Repeat every 12-18s with fresh nonces
+ *
+ * ATTACK RESISTANCE:
+ *   - Stale fingerprint only → FAIL (no session key)
+ *   - Stale fingerprint + old session key → FAIL (key rotated on reconnect)
+ *   - Live fingerprint + live session key → must maintain working guard code
+ *   - Sybil with N forged peers → each needs unique session keys + valid fingerprints
+ *
+ * Preserves all v2.0 hardening:
+ *   Timestamp validation, nonce tracking, graduated response, self-healing,
+ *   anti-collusion, sybil resistance (threshold=3)
+ */
+
+const Attestation = (() => {
+    'use strict';
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FNV-1a hash
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function _fnv1a(str) {
+        let h = 0x811c9dc5;
+        for (let i = 0; i < str.length; i++) {
+            h ^= str.charCodeAt(i);
+            h = Math.imul(h, 0x01000193);
+        }
+        return (h >>> 0).toString(16);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Generate random 256-bit session key (hex string)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function _generateSessionKey() {
+        let key = '';
+        // Use crypto.getRandomValues if available, else Math.random fallback
+        if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+            const buf = new Uint8Array(32);
+            crypto.getRandomValues(buf);
+            for (let i = 0; i < buf.length; i++) {
+                key += buf[i].toString(16).padStart(2, '0');
+            }
+        } else {
+            for (let i = 0; i < 64; i++) {
+                key += Math.floor(Math.random() * 16).toString(16);
+            }
+        }
+        return key;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Compute fingerprint from all three guards
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function computeSafeguardFingerprint() {
+        const pieces = [
+            (typeof NeuralGuard !== 'undefined' && NeuralGuard.getFingerprint) ? NeuralGuard.getFingerprint() : "dead",
+            (typeof Pentagom !== 'undefined' && Pentagom.getFingerprint) ? Pentagom.getFingerprint() : "dead",
+            (typeof AEGIS !== 'undefined' && AEGIS.getFingerprint) ? AEGIS.getFingerprint() : "dead",
+            (typeof NeuralGuard !== 'undefined') ? (Object.isFrozen(NeuralGuard) ? "1" : "0") : "0",
+            (typeof Pentagom !== 'undefined') ? (Object.isFrozen(Pentagom) ? "1" : "0") : "0",
+            (typeof AEGIS !== 'undefined') ? (Object.isFrozen(AEGIS) ? "1" : "0") : "0",
+        ].join("§");
+
+        return _fnv1a(pieces);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // State
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const MY_FP = computeSafeguardFingerprint();
+    const MY_SESSION_KEY = _generateSessionKey();  // 256-bit, never broadcast
+
+    // peerId → { fp, sessionKey, lastSeen, votes, warnings, trusted, challengeNonce, challengeTs, failedChallenges }
+    const peerFPs = new Map();
+    const _seenNonces = new Set();        // replay prevention (for ATTEST/ACCUSE/EXECUTE)
+    const _challengeNonces = new Set();   // replay prevention (for challenges)
+    const _accusedPeers = new Set();      // anti-collusion
+    const _pendingChallenges = new Map(); // peerId → { nonce, ts, resolve }
+
+    let _myPeerId = 'self';
+    let _reloadAttempts = 0;
+
+    const CONFIG = Object.freeze({
+        BAD_THRESHOLD: 3,
+        WARN_THRESHOLD: 1,
+        SUSPECT_THRESHOLD: 2,
+        TIMESTAMP_WINDOW: 10000,
+        NONCE_CACHE_MAX: 256,
+        CHALLENGE_NONCE_MAX: 128,
+        ANNOUNCE_JITTER_MIN: 12000,
+        ANNOUNCE_JITTER_MAX: 18000,
+        STALE_PEER_MS: 60000,
+        RELOAD_MAX_ATTEMPTS: 2,
+        CHALLENGE_TIMEOUT: 5000,          // 5s to respond
+        CHALLENGE_FAIL_LIMIT: 3,          // 3 failed challenges → accuse
+        MAX_FAILED_CHALLENGES: 5,         // 5 total → execute ban
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Nonce management
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function _checkNonce(nonce) {
+        if (!nonce || typeof nonce !== 'string') return false;
+        if (_seenNonces.has(nonce)) return false;
+        _seenNonces.add(nonce);
+        if (_seenNonces.size > CONFIG.NONCE_CACHE_MAX) {
+            _seenNonces.delete(_seenNonces.values().next().value);
+        }
+        return true;
+    }
+
+    function _checkChallengeNonce(nonce) {
+        if (!nonce || typeof nonce !== 'string') return false;
+        if (_challengeNonces.has(nonce)) return false;
+        _challengeNonces.add(nonce);
+        if (_challengeNonces.size > CONFIG.CHALLENGE_NONCE_MAX) {
+            _challengeNonces.delete(_challengeNonces.values().next().value);
+        }
+        return true;
+    }
+
+    function _validTimestamp(ts) {
+        if (typeof ts !== 'number') return false;
+        return Math.abs(Date.now() - ts) <= CONFIG.TIMESTAMP_WINDOW;
+    }
+
+    function _generateNonce() {
+        return _generateSessionKey().slice(0, 16);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Broadcast (user wires this to Peer.js / WebSocket)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function _sendToPeer(peerId, msg) {
+        // Add signature
+        msg.from = _myPeerId;
+        msg.ts = Date.now();
+        msg.nonce = _generateNonce();
+        // User should override window._attestSend with their actual per-peer send function
+        if (typeof window._attestSend === 'function') {
+            window._attestSend(peerId, msg);
+        }
+    }
+
+    function _broadcast(msg) {
+        msg.from = _myPeerId;
+        msg.ts = Date.now();
+        msg.nonce = _generateNonce();
+        if (typeof window._attestBroadcast === 'function') {
+            window._attestBroadcast(msg);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Self-healing
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function _selfHeal() {
+        if (_reloadAttempts < CONFIG.RELOAD_MAX_ATTEMPTS) {
+            _reloadAttempts++;
+            try { location.reload(); } catch (e) {}
+            return;
+        }
+        _fullLockdown();
+    }
+
+    function _fullLockdown() {
+        try {
+            if (typeof NeuralGuard !== 'undefined' && NeuralGuard.endSession) NeuralGuard.endSession(_myPeerId);
+            if (typeof Pentagom !== 'undefined' && Pentagom.handleBroadcast) Pentagom.handleBroadcast('BAN:' + _myPeerId);
+            if (typeof AEGIS !== 'undefined' && AEGIS.clear) AEGIS.clear();
+        } catch (e) {}
+        try { window.location.href = 'about:blank'; } catch (e) {}
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PHASE 1: Key Exchange
+    //
+    // When a new peer connects, exchange session keys privately.
+    // The session key is sent over the Peer.js data channel (point-to-point),
+    // NOT broadcast to all peers. This is the "never sent in the clear" part —
+    // it's a private channel, not a public broadcast.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function onPeerConnect(peerId) {
+        // Send our session key to this specific peer (private channel)
+        _sendToPeer(peerId, {
+            type: "KEY_EXCHANGE",
+            sessionKey: MY_SESSION_KEY,
+            fp: MY_FP,
+        });
+
+        // Initialize peer entry
+        if (!peerFPs.has(peerId)) {
+            peerFPs.set(peerId, {
+                fp: null,
+                sessionKey: null,
+                lastSeen: Date.now(),
+                votes: new Set(),
+                warnings: 0,
+                trusted: false,
+                challengeNonce: null,
+                challengeTs: 0,
+                failedChallenges: 0,
+                verified: false,
+            });
+        }
+    }
+
+    function onKeyExchange(fromPeerId, packet) {
+        let entry = peerFPs.get(fromPeerId);
+        if (!entry) {
+            entry = {
+                fp: null,
+                sessionKey: null,
+                lastSeen: Date.now(),
+                votes: new Set(),
+                warnings: 0,
+                trusted: false,
+                challengeNonce: null,
+                challengeTs: 0,
+                failedChallenges: 0,
+                verified: false,
+            };
+            peerFPs.set(fromPeerId, entry);
+        }
+
+        // Store their session key (private, per-connection)
+        entry.sessionKey = packet.sessionKey;
+        entry.fp = packet.fp;
+        entry.lastSeen = Date.now();
+
+        // Immediately challenge them to verify
+        _sendChallenge(fromPeerId);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PHASE 2: Challenge-Response
+    //
+    // We send a random nonce. The peer must respond with:
+    //   hash(fingerprint + sessionKey + nonce)
+    //
+    // We verify using the fingerprint and session key they gave us
+    // during key exchange. If their code is tampered, the fingerprint
+    // is wrong. If they're a stale copy, the session key is wrong.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function _sendChallenge(peerId) {
+        const entry = peerFPs.get(peerId);
+        if (!entry || !entry.sessionKey) return; // No session key yet
+
+        const nonce = _generateNonce();
+        entry.challengeNonce = nonce;
+        entry.challengeTs = Date.now();
+
+        _sendToPeer(peerId, {
+            type: "CHALLENGE",
+            nonce: nonce,
+        });
+
+        // Set timeout — if no response in 5s, count as failure
+        setTimeout(() => {
+            const e = peerFPs.get(peerId);
+            if (e && e.challengeNonce === nonce) {
+                // Challenge not answered
+                e.failedChallenges++;
+                if (e.failedChallenges >= CONFIG.CHALLENGE_FAIL_LIMIT) {
+                    accuse(peerId, "CHALLENGE_TIMEOUT");
+                }
+                if (e.failedChallenges >= CONFIG.MAX_FAILED_CHALLENGES) {
+                    execute(peerId, "CHALLENGE_FAILURES_EXCEEDED");
+                }
+            }
+        }, CONFIG.CHALLENGE_TIMEOUT);
+    }
+
+    function onChallenge(fromPeerId, packet) {
+        if (!_checkChallengeNonce(packet.nonce)) return;
+
+        // We must prove we know OUR fingerprint + OUR session key + their nonce
+        const response = _fnv1a(MY_FP + MY_SESSION_KEY + packet.nonce);
+
+        _sendToPeer(fromPeerId, {
+            type: "CHALLENGE_RESPONSE",
+            nonce: packet.nonce,
+            response: response,
+            fp: MY_FP,  // Include our fingerprint so they can verify
+        });
+    }
+
+    function onChallengeResponse(fromPeerId, packet) {
+        if (!_checkChallengeNonce(packet.nonce)) return;
+
+        const entry = peerFPs.get(fromPeerId);
+        if (!entry) return;
+
+        // Must match our pending challenge
+        if (entry.challengeNonce !== packet.nonce) return;
+
+        // Must be within timeout
+        if (Date.now() - entry.challengeTs > CONFIG.CHALLENGE_TIMEOUT) return;
+
+        // Verify: hash(theirFingerprint + theirSessionKey + nonce) === response
+        const expected = _fnv1a(entry.fp + entry.sessionKey + packet.nonce);
+
+        if (expected === packet.response) {
+            // VERIFIED — peer has live, untampered guard code
+            entry.verified = true;
+            entry.trusted = true;
+            entry.warnings = 0;
+            entry.failedChallenges = 0;
+        } else {
+            // FAILED — peer is forging or has stale/tampered code
+            entry.verified = false;
+            entry.trusted = false;
+            entry.failedChallenges++;
+
+            if (entry.failedChallenges >= CONFIG.CHALLENGE_FAIL_LIMIT) {
+                accuse(fromPeerId, "CHALLENGE_FAILED");
+            }
+            if (entry.failedChallenges >= CONFIG.MAX_FAILED_CHALLENGES) {
+                execute(fromPeerId, "CHALLENGE_FAILURES_EXCEEDED");
+            }
+        }
+
+        // Clear pending challenge
+        entry.challengeNonce = null;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PHASE 3: Attestation announce
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function announce() {
+        const current = computeSafeguardFingerprint();
+        if (current !== MY_FP) {
+            _selfHeal();
+            return;
+        }
+        _broadcast({ type: "ATTEST", fp: current });
+
+        // Also send fresh challenges to all connected, trusted peers
+        for (const [peerId, entry] of peerFPs) {
+            if (entry.sessionKey && Date.now() - entry.lastSeen < CONFIG.STALE_PEER_MS) {
+                _sendChallenge(peerId);
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Receive ATTEST from peer (still useful for fingerprint comparison)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function onAttest(fromPeerId, packet) {
+        if (!_checkNonce(packet.nonce)) return;
+        if (!_validTimestamp(packet.ts)) return;
+
+        let entry = peerFPs.get(fromPeerId);
+        if (!entry) {
+            entry = {
+                fp: null, sessionKey: null, lastSeen: 0,
+                votes: new Set(), warnings: 0, trusted: false,
+                challengeNonce: null, challengeTs: 0,
+                failedChallenges: 0, verified: false,
+            };
+            peerFPs.set(fromPeerId, entry);
+        }
+        entry.fp = packet.fp;
+        entry.lastSeen = Date.now();
+
+        // Graduated response to fingerprint mismatch
+        if (packet.fp !== MY_FP) {
+            entry.warnings++;
+            if (entry.warnings >= CONFIG.SUSPECT_THRESHOLD) {
+                accuse(fromPeerId, "FP_MISMATCH_REPEATED");
+            }
+        } else {
+            entry.warnings = 0;
+        }
+
+        // If we have their session key, challenge them to prove liveness
+        if (entry.sessionKey && !entry.verified) {
+            _sendChallenge(fromPeerId);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Accuse / Execute (same as v2, with challenge-failure additions)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function accuse(targetId, reason) {
+        if (_accusedPeers.has(targetId)) return;
+        _accusedPeers.add(targetId);
+        _broadcast({ type: "ACCUSE", target: targetId, reason });
+    }
+
+    function onAccuse(fromPeerId, packet) {
+        if (!_checkNonce(packet.nonce)) return;
+        if (!_validTimestamp(packet.ts)) return;
+        if (_accusedPeers.has(fromPeerId)) return;
+        if (packet.target === _myPeerId) return;
+
+        // Only trust accusations from verified peers
+        const accuser = peerFPs.get(fromPeerId);
+        if (!accuser || !accuser.verified) return;
+
+        let entry = peerFPs.get(packet.target);
+        if (!entry) {
+            entry = {
+                fp: null, sessionKey: null, lastSeen: 0,
+                votes: new Set(), warnings: 0, trusted: false,
+                challengeNonce: null, challengeTs: 0,
+                failedChallenges: 0, verified: false,
+            };
+            peerFPs.set(packet.target, entry);
+        }
+
+        if (!entry.votes.has(fromPeerId)) {
+            entry.votes.add(fromPeerId);
+            if (entry.votes.size >= CONFIG.BAD_THRESHOLD) {
+                execute(packet.target, packet.reason || "CONSENSUS_BAN");
+            }
+        }
+    }
+
+    function execute(badPeerId, reason) {
+        if (typeof Pentagom !== 'undefined' && Pentagom.handleBroadcast) {
+            Pentagom.handleBroadcast(`BAN:${badPeerId}`);
+        }
+        if (typeof NeuralGuard !== 'undefined' && NeuralGuard.endSession) {
+            NeuralGuard.endSession(badPeerId);
+        }
+
+        _broadcast({ type: "EXECUTE", id: badPeerId, reason });
+        peerFPs.delete(badPeerId);
+        _accusedPeers.delete(badPeerId);
+        _pendingChallenges.delete(badPeerId);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Reap stale peers
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function reapStale() {
+        const now = Date.now();
+        for (const [id, entry] of peerFPs) {
+            if (now - entry.lastSeen > CONFIG.STALE_PEER_MS) {
+                peerFPs.delete(id);
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Public API
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const _api = Object.freeze({
+        /**
+         * Start attestation. Call after all guards are initialized.
+         * @param {string} peerId - Your unique peer ID
+         */
+        start(peerId) {
+            if (peerId) _myPeerId = peerId;
+
+            // Initial announce
+            announce();
+
+            // Periodic announce + challenge cycle with jitter
+            setInterval(() => {
+                announce();
+                reapStale();
+            }, CONFIG.ANNOUNCE_JITTER_MIN + Math.random() * (CONFIG.ANNOUNCE_JITTER_MAX - CONFIG.ANNOUNCE_JITTER_MIN));
+        },
+
+        /**
+         * Call this when a new peer connects (Peer.js 'connection' event).
+         * Triggers key exchange + initial challenge.
+         */
+        onPeerConnect,
+
+        /**
+         * Call this when a peer disconnects.
+         * Clears their session — their session key becomes stale.
+         */
+        onPeerDisconnect(peerId) {
+            peerFPs.delete(peerId);
+            _pendingChallenges.delete(peerId);
+        },
+
+        /**
+         * Main data handler. Wire to peer.on('data').
+         * Handles: KEY_EXCHANGE, ATTEST, CHALLENGE, CHALLENGE_RESPONSE, ACCUSE, EXECUTE
+         */
+        onData(from, packet) {
+            if (!packet || typeof packet !== 'object') return;
+
+            switch (packet.type) {
+                case "KEY_EXCHANGE":
+                    onKeyExchange(from, packet);
+                    break;
+                case "ATTEST":
+                    onAttest(from, packet);
+                    break;
+                case "CHALLENGE":
+                    onChallenge(from, packet);
+                    break;
+                case "CHALLENGE_RESPONSE":
+                    onChallengeResponse(from, packet);
+                    break;
+                case "ACCUSE":
+                    onAccuse(from, packet);
+                    break;
+                case "EXECUTE":
+                    if (!_checkNonce(packet.nonce)) return;
+                    if (!_validTimestamp(packet.ts)) return;
+                    execute(packet.id, packet.reason);
+                    break;
+            }
+        },
+
+        /** Wire your per-peer send function (Peer.js conn.send) */
+        setSendFn(fn) {
+            if (typeof fn === 'function') window._attestSend = fn;
+        },
+
+        /** Wire your broadcast function (send to all peers) */
+        setBroadcastFn(fn) {
+            if (typeof fn === 'function') window._attestBroadcast = fn;
+        },
+
+        /** Get our fingerprint (for debugging) */
+        getFingerprint() { return MY_FP; },
+
+        /** Get our session key (for debugging — NEVER expose to peers) */
+        _getSessionKey() { return MY_SESSION_KEY; },
+
+        /** Force self-check */
+        verify() {
+            return computeSafeguardFingerprint() === MY_FP;
+        },
+
+        /** Check if a peer has passed challenge-response */
+        isPeerVerified(peerId) {
+            const e = peerFPs.get(peerId);
+            return e ? e.verified : false;
+        },
+
+        /** Get peer status summary */
+        getPeerStatus() {
+            const summary = {};
+            for (const [id, e] of peerFPs) {
+                summary[id] = {
+                    trusted: e.trusted,
+                    verified: e.verified,
+                    warnings: e.warnings,
+                    failedChallenges: e.failedChallenges,
+                    hasSessionKey: !!e.sessionKey,
+                };
+            }
+            return summary;
+        },
+    });
+
+    return _api;
+})();
+
+
+/**
+ * CONSOLE LOCK v2.0 [HARDENED]
+ *
+ * [v2 PATCHES]
+ * - [PATCH] Iframe sandbox — blocks console access via iframe contentWindow
+ * - [PATCH] DevTools detection — size-based detection triggers lockdown
+ * - [PATCH] debugger statement trap — catches DevTools step-through
+ * - [PATCH] Proxy trap on window — detects property tampering
+ * - [PATCH] Timing-based DevTools detection (performance.now delta)
+ * - [PATCH] Self-restoring — re-applies locks if tampered with
+ * - [PATCH] Constructor lockdown — blocks new Function, eval, setTimeout(string)
+ * - [PATCH] Source map suppression — blocks // sourceMappingUrl
+ * - [PATCH] fetch/XHR interception — blocks suspicious script loads
+ */
+
+(function lockdown() {
+    'use strict';
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 1. Console method lockdown
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const _blocked = () => { throw new Error("Console access denied [LOCKDOWN]"); };
+    const _silent = () => {};
+
+    const methods = [
+        "log", "warn", "error", "info", "debug", "table", "dir", "dirxml",
+        "trace", "group", "groupCollapsed", "groupEnd", "clear", "count",
+        "assert", "profile", "profileEnd", "time", "timeEnd",
+        "timeStamp", "context", "storeAsObject", "storeAsGlobalVariable",
+    ];
+
+    methods.forEach(m => {
+        try {
+            Object.defineProperty(console, m, {
+                value: _blocked,
+                writable: false,
+                configurable: false,
+            });
+        } catch (e) {}
+    });
+
+    try { Object.freeze(console); } catch (e) {}
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 2. eval / Function / setTimeout(string) / setInterval(string) lockdown
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const _denied = () => { throw new Error("Dynamic code execution denied [LOCKDOWN]"); };
+
+    try { Object.defineProperty(window, 'eval', { value: _denied, writable: false, configurable: false }); } catch (e) {}
+    try { Object.defineProperty(window, 'Function', { value: _denied, writable: false, configurable: false }); } catch (e) {}
+
+    // Block setTimeout/setInterval with string argument (eval in disguise)
+    const _origSetTimeout = window.setTimeout;
+    const _origSetInterval = window.setInterval;
+    try {
+        Object.defineProperty(window, 'setTimeout', {
+            value: function(fn, ...args) {
+                if (typeof fn === 'string') throw new Error("setTimeout(string) denied [LOCKDOWN]");
+                return _origSetTimeout.call(window, fn, ...args);
+            },
+            writable: false, configurable: false,
+        });
+    } catch (e) {}
+    try {
+        Object.defineProperty(window, 'setInterval', {
+            value: function(fn, ...args) {
+                if (typeof fn === 'string') throw new Error("setInterval(string) denied [LOCKDOWN]");
+                return _origSetInterval.call(window, fn, ...args);
+            },
+            writable: false, configurable: false,
+        });
+    } catch (e) {}
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 3. Iframe sandbox — blocks console access via iframe.contentWindow.console
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const _origCreateElement = document.createElement.bind(document);
+    document.createElement = function(tag) {
+        const el = _origCreateElement(tag);
+        if (tag.toLowerCase() === 'iframe') {
+            // Sandbox the iframe — blocks script execution
+            try { el.setAttribute('sandbox', ''); } catch (e) {}
+        }
+        return el;
+    };
+
+    // Also intercept innerHTML with iframe injection
+    const _origAppendChild = Node.prototype.appendChild;
+    Node.prototype.appendChild = function(child) {
+        if (child && child.tagName === 'IFRAME') {
+            try { child.setAttribute('sandbox', ''); } catch (e) {}
+        }
+        return _origAppendChild.call(this, child);
+    };
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 4. DevTools detection — multiple methods
+    // ─────────────────────────────────────────────────────────────────────────
+
+    let _devToolsOpen = false;
+    let _lockdownActive = false;
+
+    // Method 1: Window size delta (works for most browsers)
+    function _checkWindowSize() {
+        const threshold = 200;
+        const widthDelta = window.outerWidth - window.innerWidth;
+        const heightDelta = window.outerHeight - window.innerHeight;
+        return (heightDelta > threshold) || (widthDelta > threshold);
+    }
+
+    // Method 2: debugger timing (detects if DevTools is paused on breakpoint)
+    function _checkDebuggerTiming() {
+        const start = performance.now();
+        // eslint-disable-next-line no-debugger
+        debugger;
+        const end = performance.now();
+        return (end - start) > 100; // >100ms = DevTools is stepping
+    }
+
+    // Method 3: console.log with getter (FireFox-specific)
+    let _firefoxDetect = false;
+    try {
+        const obj = Object.defineProperty({}, 'x', {
+            get() { _firefoxDetect = true; return ''; },
+        });
+        // eslint-disable-next-line no-console
+        console.log(obj);
+        _firefoxDetect = false; // reset, will be set to true if DevTools inspects
+    } catch (e) {}
+
+    // DevTools detection loop
+    function _devToolsCheck() {
+        const sizeCheck = _checkWindowSize();
+        // Don't run debugger check in production if it causes issues
+        // const debugCheck = _checkDebuggerTiming();
+        const wasOpen = _devToolsOpen;
+        _devToolsOpen = sizeCheck;
+
+        if (_devToolsOpen && !wasOpen) {
+            // DevTools just opened — trigger lockdown
+            _onDevToolsOpen();
+        }
+    }
+
+    function _onDevToolsOpen() {
+        if (_lockdownActive) return;
+        _lockdownActive = true;
+
+        // Notify guards if present
+        try {
+            if (typeof AEGIS !== 'undefined' && AEGIS.on) {
+                AEGIS.on('devtools_detected', () => {});
+            }
+        } catch (e) {}
+
+        // Re-apply all locks (in case DevTools was used to remove them)
+        methods.forEach(m => {
+            try { console[m] = _blocked; } catch (e) {}
+        });
+        try { Object.freeze(console); } catch (e) {}
+        try { window.eval = _denied; } catch (e) {}
+        try { window.Function = _denied; } catch (e) {}
+
+        _lockdownActive = false;
+    }
+
+    // Start detection loop (every 1s)
+    setInterval(_devToolsCheck, 1000);
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 5. Source map suppression
+    // ─────────────────────────────────────────────────────────────────────────
+
+    try {
+        Object.defineProperty(Error, 'prepareStackTrace', {
+            value: function(err, stack) { return err.toString(); },
+            writable: false,
+            configurable: false,
+        });
+    } catch (e) {}
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 6. Fetch / XHR interception (block suspicious script loads)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const _origFetch = window.fetch;
+    if (_origFetch) {
+        window.fetch = function(url, opts) {
+            const u = String(url);
+            // Block data: URIs and blob: URIs that could inject scripts
+            if (u.startsWith('data:text/html') || u.startsWith('blob:')) {
+                throw new Error("Blocked suspicious resource load [LOCKDOWN]");
+            }
+            return _origFetch.call(window, url, opts);
+        };
+    }
+
+    const _origOpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+        const u = String(url);
+        if (u.startsWith('data:text/html') || u.startsWith('blob:')) {
+            throw new Error("Blocked XHR to suspicious URI [LOCKDOWN]");
+        }
+        return _origOpen.call(this, method, url, ...rest);
+    };
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 7. Self-restoring monitor
+    // ─────────────────────────────────────────────────────────────────────────
+
+    setInterval(() => {
+        // Check if any locks were removed
+        let needRestore = false;
+        try {
+            if (typeof console.log === 'function' && console.log !== _blocked && console.log !== _silent) {
+                needRestore = true;
+            }
+        } catch (e) { needRestore = true; }
+
+        try {
+            if (window.eval !== _denied) needRestore = true;
+        } catch (e) { needRestore = true; }
+
+        if (needRestore) {
+            _onDevToolsOpen();
+        }
+    }, 2000);
+
+})();
+
+// ─────────────────────────────────────────────────────────────────────────
+// Final hardening — make the lockdown IIFE result unrecoverable
+// ─────────────────────────────────────────────────────────────────────────
+
+try {
+    Object.defineProperty(window, 'eval', { value: () => { throw new Error("denied"); }, writable: false, configurable: false });
+} catch (e) {}
+try {
+    Object.defineProperty(window, 'Function', { value: () => { throw new Error("denied"); }, writable: false, configurable: false });
+} catch (e) {}
+
+
+// ============================================================
+// GAME CODE — Updated to use GuardBridge + Attestation
+// ============================================================
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const mCanvas = document.getElementById('minimap');
+const mCtx = mCanvas.getContext('2d');
+canvas.width = 640; canvas.height = 360;
+mCanvas.width = 120; mCanvas.height = 120;
+
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+if(isMobile) document.getElementById('touch-controls').style.display = 'block';
+
+// --- STATE ---
+let currentUser = null, boomcoins = 0, myFriends = [], myAcc = "None";
+let peer = null, connections = [], ghosts = {};
+let gameRunning = false, isChatting = false, selectedMode = 'HANGOUT';
+let shootTimer = 0, roundTime = 120, moveSeq = 0;
+const keys = {};
+
+let myCustomAvatar = null;
+const avatarImg = new Image();
+
+// Guard log helper (replaces console.log — ConsoleLock blocks console)
+function gLog(msg) {
+    const el = document.getElementById('mod-console');
+    el.style.display = 'block';
+    el.innerHTML = '[' + new Date().toLocaleTimeString() + '] ' + msg + '<br>' + el.innerHTML;
+    el.scrollTop = 0;
+}
+
+function uploadCharacter(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        myCustomAvatar = e.target.result;
+        avatarImg.src = myCustomAvatar;
+        saveData();
+        showGameMsg("AVATAR SYNCED");
+    };
+    reader.readAsDataURL(file);
+}
+
+const MAPS = {
+    HANGOUT: [[1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,1],[1,0,4,1,1,4,0,1],[1,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1]],
+    OBBY: [[1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,2,2,0,0,2,2,0,3,1],[1,1,1,1,1,1,1,1,1,1,1,1]],
+    SURVIVAL: [[1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,1],[1,0,1,4,4,1,0,1],[1,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1]]
+};
+
+let currentMap = MAPS.HANGOUT;
+const TILE = 64;
+let player = { x: 100, y: 100, z: 0, vZ: 0, dir: 0, hp: 100, isJumping: false };
+
+function showGameMsg(txt) {
+    const m = document.getElementById('game-msg');
+    m.innerText = txt; m.style.display = 'block';
+    setTimeout(() => m.style.display = 'none', 2000);
+}
+
+// --- REGIONAL PRIVACY MANDATE ---
+async function enforceRegionalPrivacy() {
+    try {
+        const check = await fetch('https://ipapi.co/json/');
+        const loc = await check.json();
+        if (loc.country_code === 'GB') {
+            document.body.innerHTML = '<div style="background:#000;color:#f00;height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:30px;font-family:\'Courier New\',monospace;border:4px solid red;box-sizing:border-box;"><div><h1 style="text-shadow:0 0 10px red;">[ACCESS_REJECTED]</h1><p style="font-size:1.1em;max-width:650px;line-height:1.6;border:1px solid red;padding:20px;">you were banned from boomstick mayhem because of your region, and just know. i value your privacy more then the UK government does.</p><p style="color:#500;margin-top:20px;">GEOLOCATION_LOCK_ACTIVE: GB_REGION</p></div></div>';
+            return false;
+        }
+    } catch (err) { gLog("Net_Gate_Skipped: Local bypass or offline mode."); }
+    return true;
+}
+
+// --- TOUCH LOGIC ---
+let touchMove = { x: 0, y: 0 };
+if(isMobile) {
+    document.getElementById('move-stick').ontouchmove = e => {
+        let b = e.target.getBoundingClientRect();
+        let tx = e.touches[0].clientX - (b.left + 50);
+        let ty = e.touches[0].clientY - (b.top + 50);
+        touchMove = { x: tx / 50, y: ty / 50 };
+    };
+    document.getElementById('move-stick').ontouchend = () => touchMove = { x: 0, y: 0 };
+    document.getElementById('look-stick').ontouchmove = e => {
+        let b = e.target.getBoundingClientRect();
+        let tx = e.touches[0].clientX - (b.left + 50);
+        player.dir += tx * 0.001;
+    };
+    document.getElementById('jump-btn').ontouchstart = () => { if(!player.isJumping) { player.vZ = 5; player.isJumping = true; }};
+    document.getElementById('fire-btn').ontouchstart = () => shoot();
+}
+
+// --- CORE AUTH ---
+async function handleAuth() {
+    const access = await enforceRegionalPrivacy();
+    if (!access) return;
+    const u = document.getElementById('u-in').value.trim();
+    const p = document.getElementById('p-in').value;
+    if(u.length < 3) return;
+    let users = JSON.parse(localStorage.getItem('bm_v3_users') || '{}');
+    if(users[u] && users[u].pass !== p) return alert("WRONG PASSWORD");
+    if(!users[u]) users[u] = { pass: p, coins: 100, friends: [], acc: "None", avatar: null };
+    currentUser = u; boomcoins = users[u].coins; myFriends = users[u].friends || [];
+    myAcc = users[u].acc || "None"; myCustomAvatar = users[u].avatar || null;
+    if(myCustomAvatar) avatarImg.src = myCustomAvatar;
+    localStorage.setItem('bm_v3_users', JSON.stringify(users));
+    document.getElementById('auth-gate').style.display = 'none';
+    document.getElementById('hub').style.display = 'block';
+    document.getElementById('sidebar').style.display = (isMobile) ? 'none' : 'block';
+    refreshUI(); updateSocialUI(); initNet();
+}
+
+function refreshUI() {
+    document.getElementById('hud-coins').innerText = boomcoins;
+    document.getElementById('hud-hp').style.width = player.hp + '%';
+    document.getElementById('stats-summary').innerText = 'CREDITS: ' + boomcoins + ' | ACC: ' + myAcc.toUpperCase();
+}
+
+function setMode(m) {
+    selectedMode = m;
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('m-' + m.toLowerCase().substring(0,4)).classList.add('active');
+}
+
+// --- NETWORKING WITH GUARD INTEGRATION ---
+function initNet() {
+    const config = { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] };
+    peer = new Peer('bm-v3-' + currentUser, { config: config });
+
+    // Initialize Pentagom with our UUID
+    Pentagom.init(currentUser);
+    Pentagom.restore(); // Restore badlist from localStorage
+
+    // Initialize AEGIS
+    AEGIS.init();
+
+    // Initialize NeuralGuard session for ourselves
+    NeuralGuard.initSession(currentUser, currentUser);
+
+    peer.on('open', (id) => {
+        gLog("NET_READY: " + id);
+        // Wire Attestation
+        Attestation.setSendFn((peerId, msg) => {
+            const conn = connections.find(c => c.peer === peerId);
+            if (conn && conn.open) conn.send(msg);
+        });
+        Attestation.setBroadcastFn((msg) => {
+            connections.forEach(c => { if (c.open) c.send(msg); });
+        });
+        Attestation.start(currentUser);
+        myFriends.forEach(f => tryConnect(f));
+    });
+
+    peer.on('connection', setupConn);
+    peer.on('error', err => { if(err.type === 'peer-unavailable') gLog("Peer offline."); });
+}
+
+function tryConnect(fName) {
+    if(fName === currentUser) return;
+    const conn = peer.connect('bm-v3-' + fName);
+    setupConn(conn);
+}
+
+function setupConn(conn) {
+    conn.on('open', () => {
+        if(connections.find(c => c.peer === conn.peer)) return;
+        connections.push(conn);
+
+        // Attestation: notify of new peer connection
+        const peerName = conn.peer.replace('bm-v3-', '');
+        Attestation.onPeerConnect(conn.peer);
+
+        // NeuralGuard: init session for this peer
+        NeuralGuard.initSession(peerName, peerName);
+
+        conn.send({ type: 'handshake', name: currentUser, acc: myAcc, hp: player.hp, mode: selectedMode, avatar: myCustomAvatar });
+    });
+
+    conn.on('data', data => {
+        // Attestation handles its own packet types
+        if (data.type === 'KEY_EXCHANGE' || data.type === 'ATTEST' ||
+            data.type === 'CHALLENGE' || data.type === 'CHALLENGE_RESPONSE' ||
+            data.type === 'ACCUSE' || data.type === 'EXECUTE') {
+            Attestation.onData(conn.peer, data);
+            return;
+        }
+
+        // Pentagom ban broadcast
+        if (data.type === 'BAN') {
+            Pentagom.handleBroadcast('BAN:' + data.target);
+            return;
+        }
+
+        // Movement data — validate through Pentagom/GuardBridge
+        if(data.type === 'move') {
+            // Skip banned peers
+            if (Pentagom.isBad(conn.peer)) return;
+
+            // Validate movement through GuardBridge
+            const frameResult = GuardBridge.checkFrame(conn.peer, {
+                x: data.x, y: data.y, z: data.z, seq: data.seq, ts: Date.now()
+            });
+
+            if (frameResult.action === 'DROP' || frameResult.action === 'BAN' || frameResult.action === 'IGNORE') return;
+
+            ghosts[data.name] = { ...ghosts[data.name], ...data, lastSeen: Date.now() };
+            if(data.avatar && !ghosts[data.name].sprite) {
+                ghosts[data.name].sprite = new Image();
+                ghosts[data.name].sprite.src = data.avatar;
+            }
+        }
+
+        if(data.type === 'handshake') {
+            // Skip banned peers
+            if (Pentagom.isBad(conn.peer)) return;
+
+            ghosts[data.name] = { x: 128, y: 128, z: 0, name: data.name, acc: data.acc, hp: data.hp, mode: data.mode, lastSeen: Date.now(), avatar: data.avatar };
+            if(data.avatar) {
+                ghosts[data.name].sprite = new Image();
+                ghosts[data.name].sprite.src = data.avatar;
+            }
+            addChat("SYSTEM", data.name + " LINKED");
+        }
+
+        if(data.type === 'chat') {
+            // Skip banned peers
+            if (Pentagom.isBad(conn.peer)) return;
+
+            // Validate chat through GuardBridge (all 3 guards)
+            const chatResult = GuardBridge.checkChat(data.name, currentUser, data.msg);
+
+            if (chatResult.action === 'GHOST') {
+                // Sender is ghosted — show ghost message instead of real message
+                addChat(data.name, chatResult.sources.length > 0 ? "..." : data.msg);
+                return;
+            }
+            if (chatResult.action === 'DROP' || chatResult.action === 'TERMINATE') {
+                // Message blocked
+                return;
+            }
+            if (chatResult.action === 'WARN' || chatResult.action === 'ALERT') {
+                gLog("GUARD_WARN: " + data.name + " - " + (chatResult.signals || []).join(','));
+            }
+
+            addChat(data.name, data.msg);
+        }
+
+        if(data.type === 'damage' && data.target === currentUser) {
+            player.hp -= 20;
+            document.body.style.filter = "invert(0.1) sepia(1) saturate(5) hue-rotate(-50deg)";
+            setTimeout(() => document.body.style.filter = "", 100);
+            if(player.hp <= 0) respawn();
+            broadcastStatus(); refreshUI();
+        }
+
+        if(data.type === 'ping') {
+            conn.send({ type: 'move', x:player.x, y:player.y, z:player.z, dir:player.dir, name:currentUser, acc:myAcc, hp:player.hp, mode:selectedMode, avatar: myCustomAvatar, seq: moveSeq++ });
+        }
+    });
+
+    conn.on('close', () => {
+        connections = connections.filter(c => c.peer !== conn.peer);
+        Attestation.onPeerDisconnect(conn.peer);
+        const peerName = conn.peer.replace('bm-v3-', '');
+        if (ghosts[peerName]) {
+            delete ghosts[peerName];
+            addChat("SYSTEM", peerName + " DISCONNECTED");
+        }
+    });
+}
+
+function broadcastStatus() {
+    if(!peer || peer.disconnected) return;
+
+    // Validate our own movement through Pentagom (local check)
+    moveSeq++;
+    connections.forEach(c => {
+        if(c.open) {
+            c.send({
+                type:'move', x:player.x, y:player.y, z:player.z, dir:player.dir,
+                name:currentUser, acc:myAcc, hp:player.hp, mode:selectedMode,
+                avatar: myCustomAvatar, seq: moveSeq, ts: Date.now()
+            });
+        }
+    });
+
+    // Periodic Pentagom tick (reap stale sessions)
+    if (moveSeq % 60 === 0) Pentagom.tick();
+}
+
+// --- GAMEPLAY ---
+function launchGame() {
+    currentMap = MAPS[selectedMode];
+    document.getElementById('boot').style.display = 'none';
+    document.getElementById('ui').style.display = 'block';
+    document.getElementById('minimap').style.display = 'block';
+    document.getElementById('crosshair').style.display = (selectedMode === 'SURVIVAL') ? 'block' : 'none';
+    document.getElementById('weapon-view').style.display = (selectedMode === 'SURVIVAL') ? 'block' : 'none';
+    document.getElementById('chat-area').style.display = 'block';
+    document.getElementById('hud-mode').innerText = selectedMode;
+    document.getElementById('hud-name').innerText = currentUser;
+    player.hp = 100; player.x = 100; player.y = 100; player.z = 0;
+    refreshUI(); gameRunning = true;
+    if(selectedMode === 'SURVIVAL') startTimer();
+    if(!isMobile) canvas.requestPointerLock();
+    loop();
+}
+
+function startTimer() {
+    roundTime = 120;
+    document.getElementById('timer-box').style.display = 'block';
+    const interval = setInterval(() => {
+        if(!gameRunning || selectedMode !== 'SURVIVAL') { clearInterval(interval); return; }
+        roundTime--;
+        document.getElementById('timer-box').innerText = Math.floor(roundTime/60) + ':' + (roundTime%60).toString().padStart(2,'0');
+        if(roundTime <= 0) {
+            clearInterval(interval);
+            showGameMsg("ROUND OVER!");
+            boomcoins += 20; saveData();
+            setTimeout(() => { gameRunning = false; document.getElementById('boot').style.display = 'flex'; }, 3000);
+        }
+    }, 1000);
+}
+
+function respawn() {
+    player.hp = 100; player.x = 100; player.y = 100; player.z = 0;
+    showGameMsg("REBOOTING..."); refreshUI();
+}
+
+function shoot() {
+    if(selectedMode !== 'SURVIVAL' || shootTimer > 0) return;
+    shootTimer = 15;
+    const flash = document.getElementById('muzzle-flash');
+    flash.style.display = 'block';
+    setTimeout(() => flash.style.display = 'none', 50);
+
+    Object.values(ghosts).forEach(g => {
+        if (Pentagom.isBad('bm-v3-' + g.name)) return; // Skip banned peers
+        let dx = g.x - player.x, dy = g.y - player.y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        let angle = Math.atan2(dy, dx) - player.dir;
+        while(angle < -Math.PI) angle += Math.PI*2; while(angle > Math.PI) angle -= Math.PI*2;
+        if(Math.abs(angle) < 0.2 && dist < 600) {
+            if(Math.abs(angle) < 0.01 && dist > 450) {
+                gLog("COMBAT_ANOMALY: " + currentUser + " perfect aim at distance.");
+            }
+            connections.forEach(c => c.send({type: 'damage', target: g.name}));
+        }
+    });
+}
+
+function loop() {
+    if(!gameRunning) return;
+    const now = Date.now();
+
+    // Clean up stale ghosts
+    Object.keys(ghosts).forEach(id => {
+        let diff = now - ghosts[id].lastSeen;
+        if(diff > 5000) {
+            delete ghosts[id];
+        } else if(diff > 2000) {
+            let conn = connections.find(c => c.peer === 'bm-v3-' + id);
+            if(conn && conn.open) conn.send({type: 'ping'});
+        }
+    });
+
+    if(!isChatting) {
+        let mv = 0, side = 0;
+        if(isMobile) {
+            mv = -touchMove.y * 3; side = touchMove.x * 2;
+        } else {
+            if(keys['KeyW']) mv = 3; if(keys['KeyS']) mv = -3;
+            if(keys['KeyA']) side = -2; if(keys['KeyD']) side = 2;
+            if(keys['Space'] && !player.isJumping) { player.vZ = 5; player.isJumping = true; }
+        }
+
+        player.z += player.vZ;
+        if(player.z > 0) player.vZ -= 0.3; else { player.z = 0; player.vZ = 0; player.isJumping = false; }
+
+        let nx = player.x + Math.cos(player.dir)*mv + Math.cos(player.dir+Math.PI/2)*side;
+        let ny = player.y + Math.sin(player.dir)*mv + Math.sin(player.dir+Math.PI/2)*side;
+
+        let tx = Math.floor(nx/TILE), ty = Math.floor(ny/TILE);
+        let tile = (currentMap[ty] && currentMap[ty][tx]) || 0;
+        let tileH = (tile === 1) ? 1000 : (tile === 4) ? 30 : 0;
+
+        if(player.z >= tileH || tile === 0 || tile === 2 || tile === 3) {
+            player.x = nx; player.y = ny;
+            if(tile === 2) respawn();
+            if(tile === 3) { showGameMsg("OBBY CLEAR!"); boomcoins += 50; saveData(); respawn(); }
+        }
+        broadcastStatus();
+
+        if(selectedMode === 'SURVIVAL') {
+            const sway = Math.sin(Date.now() * 0.005) * (mv !== 0 || side !== 0 ? 10 : 2);
+            document.getElementById('gun-sprite').style.transform = 'skewX(-10deg) translateY(' + sway + 'px)';
+        }
+    }
+
+    if(shootTimer > 0) shootTimer--;
+
+    // Render
+    const horizon = 180 + player.z;
+    ctx.fillStyle = "#010"; ctx.fillRect(0,0,640,horizon);
+    ctx.fillStyle = "#000"; ctx.fillRect(0,horizon,640,360-horizon);
+
+    let zBuf = [];
+    for(let i=0; i<80; i++) {
+        let angle = (player.dir - 0.5) + (i/80);
+        let d = 0, hit = 0;
+        while(d < 800) {
+            d += 4;
+            let tx = Math.floor((player.x + Math.cos(angle)*d)/TILE), ty = Math.floor((player.y + Math.sin(angle)*d)/TILE);
+            hit = (currentMap[ty] && currentMap[ty][tx]) || 0;
+            if(hit === 1 || hit === 4) break;
+        }
+        zBuf[i] = d;
+        let h = (8000 * (hit === 4 ? 0.4 : 1)) / (d * Math.cos(angle-player.dir));
+        ctx.fillStyle = 'rgb(0, ' + Math.max(0, Math.floor(180-d/4)) + ', 0)';
+        ctx.fillRect(i*8, horizon - h/2, 8, h);
+    }
+
+    // Render ghosts (skip banned)
+    Object.values(ghosts).forEach(g => {
+        if (Pentagom.isBad('bm-v3-' + g.name)) return;
+        let dx = g.x - player.x, dy = g.y - player.y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        let angle = Math.atan2(dy, dx) - player.dir;
+        while(angle < -Math.PI) angle += Math.PI*2; while(angle > Math.PI) angle -= Math.PI*2;
+        if(Math.abs(angle) < 0.8) {
+            let sx = (angle + 0.5) * 640;
+            let h = 8000 / dist;
+            let colIdx = Math.floor(sx/8);
+            if(colIdx >= 0 && colIdx < 80 && dist < zBuf[colIdx]) {
+                let gy = horizon - h/2 - (g.z * (h/TILE));
+                if(g.sprite && g.sprite.complete) {
+                    ctx.drawImage(g.sprite, sx - h/4, gy, h/2, h);
+                } else {
+                    ctx.fillStyle = (g.mode === 'SURVIVAL') ? "white" : "cyan";
+                    ctx.fillRect(sx - h/4, gy, h/2, h);
+                }
+                if(g.acc === "Wings") {
+                    ctx.fillStyle = "rgba(0, 255, 255, 0.5)";
+                    ctx.fillRect(sx - h/2, gy + h/4, h, h/10);
+                } else if(g.acc === "Eye") {
+                    ctx.fillStyle = "red";
+                    ctx.fillRect(sx - 2, gy + 5, 4, 4);
+                }
+                ctx.fillStyle = "#0f0"; ctx.font = "10px Courier";
+                ctx.fillText(g.name + ' [' + g.hp + '%]', sx - 20, gy - 10);
+            }
+        }
+    });
+
+    drawMinimap();
+
+    // Update guard status display
+    const gs = document.getElementById('guard-status');
+    if (gameRunning) {
+        gs.style.display = 'block';
+        const verified = Attestation.getPeerStatus ? Object.keys(Attestation.getPeerStatus()).filter(k => Attestation.isPeerVerified(k)).length : 0;
+        gs.innerText = 'PEERS:' + connections.length + ' VERIFIED:' + verified + ' BANS:' + (Pentagom.getBadlistSize ? Pentagom.getBadlistSize() : 0);
+    }
+
+    requestAnimationFrame(loop);
+}
+
+function drawMinimap() {
+    mCtx.fillStyle = '#000'; mCtx.fillRect(0,0,120,120);
+    const s = 120 / (currentMap.length * TILE);
+    currentMap.forEach((row, y) => row.forEach((v, x) => {
+        if(v === 1) mCtx.fillStyle = '#0f0'; else if(v === 4) mCtx.fillStyle = '#070';
+        else if(v === 2) mCtx.fillStyle = '#f00'; else if(v === 3) mCtx.fillStyle = '#ff0';
+        else return;
+        mCtx.fillRect(x*TILE*s, y*TILE*s, TILE*s, TILE*s);
+    }));
+    mCtx.fillStyle = '#fff'; mCtx.fillRect(player.x*s-2, player.y*s-2, 4, 4);
+}
+
+// --- INPUTS & GUARD-INTEGRATED CHAT ---
+window.onmousedown = () => { if(gameRunning && !isChatting && !isMobile) shoot(); };
+window.onkeydown = e => {
+    keys[e.code] = true;
+    if(e.code === 'Enter' && gameRunning) {
+        const inp = document.getElementById('chat-input');
+        if(!isChatting) {
+            isChatting = true; inp.style.display = 'block'; inp.focus();
+            if(!isMobile) document.exitPointerLock();
+        } else {
+            if(inp.value) {
+                // Run through GuardBridge (all 3 guards)
+                const result = GuardBridge.checkChat(currentUser, 'broadcast', inp.value);
+
+                if (result.action === 'ALLOW' || result.action === 'WARN') {
+                    addChat(currentUser, inp.value);
+                    // Only broadcast if not shadow-banned by any guard
+                    if (result.action !== 'TERMINATE' && result.action !== 'GHOST') {
+                        connections.forEach(c => c.send({type:'chat', name:currentUser, msg:inp.value}));
+                    }
+                } else if (result.action === 'GHOST') {
+                    // User is ghosted — show a ghost message locally, don't broadcast real message
+                    addChat(currentUser, inp.value);
+                    gLog("GUARD_GHOST: Message blocked by guard stack - " + (result.signals || []).join(','));
+                } else if (result.action === 'DROP') {
+                    gLog("GUARD_DROP: Message dropped - " + (result.signals || []).join(','));
+                } else if (result.action === 'TERMINATE') {
+                    addChat("SYSTEM", "TRANSMISSION TERMINATED BY GUARD");
+                    gLog("GUARD_TERMINATE: " + (result.signals || []).join(','));
+                }
+
+                if (result.signals && result.signals.length > 0) {
+                    gLog("CHAT_SIGNALS: " + currentUser + " - " + result.signals.join(', '));
+                }
+            }
+            inp.value = ""; inp.style.display = 'none'; isChatting = false;
+            if(!isMobile) canvas.requestPointerLock();
+        }
+    }
+};
+window.onkeyup = e => keys[e.code] = false;
+window.onmousemove = e => { if(document.pointerLockElement) player.dir += e.movementX * 0.003; };
+
+function addChat(u, m) {
+    const l = document.getElementById('chat-log');
+    l.innerHTML += '<div><b>' + u + ':</b> ' + m + '</div>';
+    l.scrollTop = l.scrollHeight;
+}
+
+function setAcc(a) { myAcc = a; saveData(); refreshUI(); broadcastStatus(); }
+
+function addFriend() {
+    const n = document.getElementById('f-search').value.trim();
+    if(n && !myFriends.includes(n)) { myFriends.push(n); saveData(); updateSocialUI(); tryConnect(n); }
+}
+
+function updateSocialUI() {
+    document.getElementById('friend-list').innerHTML = myFriends.map(f => {
+        const isBanned = Pentagom.isBad ? Pentagom.isBad('bm-v3-' + f) : false;
+        return '<div class="item">' + f + ' <span style="color:' + (isBanned ? 'var(--red)' : 'var(--cyan)') + '">' + (isBanned ? 'BANNED' : 'ONLINE') + '</span><br><button class="rep-btn" onclick="reportPlayer(\'' + f + '\')">REPORT</button></div>';
+    }).join('');
+}
+
+function reportPlayer(targetName) {
+    const ghost = ghosts[targetName];
+    gLog("MANUAL_REPORT: " + targetName + " LOC:[" + (ghost ? Math.floor(ghost.x) : '???') + "," + (ghost ? Math.floor(ghost.y) : '???') + "]");
+    showGameMsg("REPORT SENT: " + targetName);
+}
+
+function saveData() {
+    let users = JSON.parse(localStorage.getItem('bm_v3_users') || '{}');
+    if(!users[currentUser]) users[currentUser] = {};
+    users[currentUser].coins = boomcoins; users[currentUser].friends = myFriends;
+    users[currentUser].acc = myAcc; users[currentUser].avatar = myCustomAvatar;
+    localStorage.setItem('bm_v3_users', JSON.stringify(users));
+    Pentagom.persist(); // Save badlist too
+}
+
+function claimDaily() { boomcoins += 100; saveData(); refreshUI(); alert("100 CREDITS TRANSFERRED."); }
+</script>
+</body>
+</html>

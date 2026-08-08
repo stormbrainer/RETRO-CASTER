@@ -1,0 +1,119 @@
+╔══════════════════════════════════════════════════════════════════╗
+║                                                                  ║
+║   RETRO-CASTER: CROSS-LINK                                        ║
+║   Licensing & Copyright Notice                                   ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+
+This project contains three distinct categories of code, each
+governed by its own license terms:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. GAME CODE — All Rights Reserved
+──────────────────────────────────────────────────────────────────
+
+  The RETRO-CASTER game engine, rendering pipeline, networking
+  layer, UI, maps, gameplay mechanics, and all associated game
+  logic are © All Rights Reserved.
+
+  You may NOT copy, redistribute, modify, or incorporate the game
+  code into other projects without explicit written permission
+  from the copyright holder.
+
+  This includes:
+    • The raycasting renderer
+    • The Peer.js networking wrapper
+    • The game loop and state management
+    • The map definitions and tile system
+    • The HUD, touch controls, and UI elements
+    • The authentication and regional privacy modules
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+2. SAFEGUARD LIBRARY — GPLv3
+──────────────────────────────────────────────────────────────────
+
+  The following modules are licensed under the GNU General Public
+  License v3.0 (see LICENSE-GPL file for full text):
+
+    • NeuralGuard v29.0   — chat moderation & content filtering
+    • Pentagom v21.0      — peer movement & anti-cheat validation
+    • AEGIS v5.0          — grooming detection & threat scoring
+    • Attestation v3.0    — challenge-response peer verification
+    • GuardBridge v2.0    — unified guard result merging
+    • ConsoleLock v2.0    — devtools & console lockdown
+
+  SPDX-License-Identifier: GPL-3.0-or-later
+
+  These modules are designed to protect users — particularly
+  minors — in peer-to-peer environments. The copyleft requirement
+  ensures that any modified version of these safeguards must
+  remain open-source, preventing silent removal of safety features.
+
+  If you modify and distribute these modules, you must:
+    • Publish your modified source code under GPLv3
+    • Clearly mark what you changed and when
+    • Include the full GPL v3 license text
+    • Not impose additional restrictions beyond GPLv3
+
+  See: https://www.gnu.org/licenses/gpl-3.0.html
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+3. USER-GENERATED CONTENT — Protected
+──────────────────────────────────────────────────────────────────
+
+  All user-created content — including but not limited to:
+
+    • Custom character avatars uploaded through the game
+    • User-configured accessories and cosmetic items
+    • User-generated chat content (within the game)
+    • Custom usernames and profile configurations
+
+  remains the property of the user who created it.
+
+  Copying, redistributing, or reusing original user-generated
+  content outside the RETRO-CASTER platform without the creator's
+  permission may result in a DMCA takedown notice.
+
+  The safeguard modules (Section 2 above) are designed to protect
+  user-generated content from exploitation, particularly for
+  minors. Any attempt to bypass these safeguards to access,
+  copy, or redistribute user content without consent is a
+  violation of this license.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+4. THIRD-PARTY DEPENDENCIES
+──────────────────────────────────────────────────────────────────
+
+  This project uses Peer.js (https://peerjs.com/) for WebRTC
+  peer-to-peer networking, which is MIT licensed.
+
+  The full MIT license text for Peer.js is available at:
+  https://github.com/peers/peerjs/blob/master/LICENSE
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+5. SUMMARY
+──────────────────────────────────────────────────────────────────
+
+  ┌─────────────────────┬──────────────────────────────┐
+  │ Component           │ License                      │
+  ├─────────────────────┼──────────────────────────────┤
+  │ Game engine & code  │ All Rights Reserved          │
+  │ Guard library       │ GPL-3.0-or-later             │
+  │ User-generated art  │ User-owned, copying = DMCA   │
+  │ Peer.js             │ MIT                          │
+  └─────────────────────┴──────────────────────────────┘
+
+  In plain English:
+    • Don't steal the game.
+    • Share the guards freely (but keep them open).
+    • Don't copy people's stuff.
+    • If you modify the guards, your modifications must stay open too.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+For licensing inquiries, contact the project maintainer.
